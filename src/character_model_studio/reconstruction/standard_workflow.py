@@ -6,6 +6,7 @@ import gc
 import time
 from collections.abc import Callable
 from pathlib import Path
+from shutil import copy2
 
 import torch
 
@@ -13,7 +14,11 @@ from character_model_studio.app.capabilities import probe_runtime
 from character_model_studio.common.cancellation import CancellationToken
 from character_model_studio.domain.models import ProgressUpdate
 from character_model_studio.domain.states import AttemptStatus
-from character_model_studio.reconstruction.preprocessing import select_representative_frame
+from character_model_studio.reconstruction.preprocessing import (
+    extract_candidate_frames,
+    select_complete_character_frame,
+    with_output_path,
+)
 from character_model_studio.reconstruction.providers.hunyuan2 import Hunyuan3D20Provider
 from character_model_studio.reconstruction.providers.rembg_segmentation import (
     RembgAnimeSegmentationProvider,
@@ -41,15 +46,14 @@ class StandardShapeWorkflow:
             attempt = repository.get_attempt(attempt_id)
             provider = _provider_for_attempt(attempt.provider)
             repository.transition_attempt(attempt_id, AttemptStatus.PREPROCESSING)
-            progress(
-                ProgressUpdate("preprocess", "Selecting a representative capture frame", 10, True)
-            )
+            progress(ProgressUpdate("preprocess", "Extracting candidate capture frames", 10, True))
             capture = repository.get_capture(attempt.capture_id)
             input_path = repository.attempt_artifact_path(attempt_id, "inputs/selected-frame.png")
-            selection = select_representative_frame(
-                repository.projects_root / capture.relative_path, input_path
+            candidate_directory = repository.attempt_artifact_path(attempt_id, "inputs/candidates")
+            candidates = extract_candidate_frames(
+                repository.projects_root / capture.relative_path, candidate_directory
             )
-            if token.is_cancelled:
+            if _is_cancelled(token):
                 repository.transition_attempt(attempt_id, AttemptStatus.CANCELLED)
                 return input_path
 
@@ -63,7 +67,31 @@ class StandardShapeWorkflow:
             )
             mask_path = repository.attempt_artifact_path(attempt_id, "inputs/character-mask.png")
             segmentation.load()
-            segmentation.isolate(input_path, isolated_input_path, mask_path)
+            candidate_masks: list[Path] = []
+            candidate_isolations: list[Path] = []
+            for position, candidate in enumerate(candidates):
+                if _is_cancelled(token):
+                    repository.transition_attempt(attempt_id, AttemptStatus.CANCELLED)
+                    return input_path
+                progress(
+                    ProgressUpdate(
+                        "segment",
+                        f"Isolating character candidate {position + 1}/{len(candidates)}",
+                        None,
+                        True,
+                    )
+                )
+                candidate_isolation = candidate_directory / f"isolated-{position:02d}.png"
+                candidate_mask = candidate_directory / f"mask-{position:02d}.png"
+                segmentation.isolate(candidate.output_path, candidate_isolation, candidate_mask)
+                candidate_isolations.append(candidate_isolation)
+                candidate_masks.append(candidate_mask)
+            selected_candidate = select_complete_character_frame(candidates, candidate_masks)
+            selected_position = candidates.index(selected_candidate)
+            copy2(selected_candidate.output_path, input_path)
+            copy2(candidate_isolations[selected_position], isolated_input_path)
+            copy2(candidate_masks[selected_position], mask_path)
+            selection = with_output_path(selected_candidate, input_path)
             segmentation.unload()
 
             device = torch.device("cuda:0")
@@ -168,6 +196,11 @@ def _gpu_memory(device: torch.device) -> dict[str, int]:
         "allocated_bytes": torch.cuda.memory_allocated(device),
         "reserved_bytes": torch.cuda.memory_reserved(device),
     }
+
+
+def _is_cancelled(token: CancellationToken) -> bool:
+    """Read cancellation without narrowing a mutable signal for later loop iterations."""
+    return token.is_cancelled
 
 
 def _provider_for_attempt(provider_name: str) -> Hunyuan3D20Provider | StableFast3DProvider:
