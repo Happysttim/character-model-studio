@@ -73,6 +73,7 @@ class WorkspaceView(QWidget):
     def __init__(self, definition: WorkspaceDefinition, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.definition = definition
+        self.reduce_motion: QCheckBox | None = None
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(16)

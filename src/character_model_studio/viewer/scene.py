@@ -1,0 +1,51 @@
+"""Independent GLB parsing and conversion for viewer rendering."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import pyvista as pv
+import trimesh
+
+
+@dataclass(frozen=True, slots=True)
+class LoadedModel:
+    """Parsed mesh metadata and the rendering dataset derived from it."""
+
+    source_path: Path
+    mesh: pv.PolyData
+    vertex_count: int
+    face_count: int
+
+
+def load_glb_model(path: Path) -> LoadedModel:
+    """Parse a GLB with trimesh before converting supported triangles to PyVista."""
+    if not path.is_file():
+        raise FileNotFoundError(f"Model file does not exist: {path}")
+
+    loaded: Any = trimesh.load(path, force="scene")
+    geometries: list[Any] = [
+        geometry for geometry in loaded.geometry.values() if isinstance(geometry, trimesh.Trimesh)
+    ]
+    if not geometries:
+        raise ValueError("The GLB does not contain a triangular mesh.")
+
+    mesh: Any = trimesh.util.concatenate(geometries)
+    if len(mesh.vertices) == 0 or len(mesh.faces) == 0:
+        raise ValueError("The GLB mesh is empty.")
+    if not np.isfinite(mesh.vertices).all():
+        raise ValueError("The GLB contains non-finite vertex values.")
+
+    faces = np.column_stack(
+        (np.full(len(mesh.faces), 3, dtype=np.int64), mesh.faces.astype(np.int64, copy=False))
+    ).ravel()
+    poly_data = pv.PolyData(mesh.vertices.astype(float, copy=False), faces)
+    return LoadedModel(
+        source_path=path,
+        mesh=poly_data,
+        vertex_count=len(mesh.vertices),
+        face_count=len(mesh.faces),
+    )

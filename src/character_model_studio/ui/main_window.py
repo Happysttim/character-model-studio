@@ -19,6 +19,7 @@ from character_model_studio.app.bootstrap import ApplicationContext
 from character_model_studio.platform.windows.dwm import enable_system_backdrop
 from character_model_studio.ui.motion import MotionPreferences, fade_in
 from character_model_studio.ui.theme import application_stylesheet
+from character_model_studio.ui.views.review import ReviewWorkspace
 from character_model_studio.ui.views.workspace import WORKSPACES, WorkspaceView
 from character_model_studio.ui.widgets.controls import StatusIndicator, Toast
 
@@ -53,6 +54,9 @@ class MainWindow(QMainWindow):
 
         self._current_destination = destination
         self._workspace_stack.setCurrentIndex(self._workspace_indexes[destination])
+        current_workspace = self._workspace_stack.currentWidget()
+        if isinstance(current_workspace, ReviewWorkspace):
+            current_workspace.activate()
         definition = next(item for item in WORKSPACES if item.key == destination)
         self._page_title.setText(definition.title)
         self._page_subtitle.setText(definition.subtitle)
@@ -123,10 +127,14 @@ class MainWindow(QMainWindow):
 
         self._workspace_stack = QStackedWidget(workspace)
         for definition in WORKSPACES:
-            view = WorkspaceView(definition, self._workspace_stack)
+            view: QWidget
+            if definition.key == "review":
+                view = ReviewWorkspace(self._context, definition, self._workspace_stack)
+            else:
+                view = WorkspaceView(definition, self._workspace_stack)
             index = self._workspace_stack.addWidget(view)
             self._workspace_indexes[definition.key] = index
-            if definition.key == "diagnostics":
+            if isinstance(view, WorkspaceView) and view.reduce_motion is not None:
                 view.reduce_motion.toggled.connect(self._set_reduce_motion)
         outer_layout.addWidget(self._workspace_stack, stretch=1)
 

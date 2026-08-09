@@ -20,6 +20,7 @@ if (-not (Test-Path $python)) {
 
 Push-Location $projectRoot
 try {
+    Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
     $env:CHARACTER_MODEL_STUDIO_DATA_DIR = Join-Path $projectRoot '.local'
 
     function Invoke-ProjectPython {

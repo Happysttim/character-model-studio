@@ -70,5 +70,5 @@ strict = true
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
-module = ["PySide6", "PySide6.*"]
+module = ["PySide6", "PySide6.*", "pyvista", "pyvista.*", "pyvistaqt", "trimesh", "trimesh.*"]
 ignore_missing_imports = true

@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QVBoxLayout,
+    QWidget,
 )
 
 from character_model_studio.ui.motion import MotionPreferences, fade_in
@@ -19,7 +20,7 @@ from character_model_studio.ui.motion import MotionPreferences, fade_in
 class PrimaryButton(QPushButton):
     """Warm, high-contrast primary action button."""
 
-    def __init__(self, text: str, parent: QFrame | None = None) -> None:
+    def __init__(self, text: str, parent: QWidget | None = None) -> None:
         super().__init__(text, parent)
         self.setProperty("buttonKind", "primary")
 
@@ -27,7 +28,7 @@ class PrimaryButton(QPushButton):
 class SecondaryButton(QPushButton):
     """Glass-surface secondary action button."""
 
-    def __init__(self, text: str, parent: QFrame | None = None) -> None:
+    def __init__(self, text: str, parent: QWidget | None = None) -> None:
         super().__init__(text, parent)
         self.setProperty("buttonKind", "secondary")
 
@@ -35,7 +36,7 @@ class SecondaryButton(QPushButton):
 class StyledLineEdit(QLineEdit):
     """Compact input with the centralized focus treatment."""
 
-    def __init__(self, placeholder: str = "", parent: QFrame | None = None) -> None:
+    def __init__(self, placeholder: str = "", parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setPlaceholderText(placeholder)
 
@@ -56,7 +57,7 @@ class StatusIndicator(QFrame):
 class AppDialog(QDialog):
     """A restrained dialog surface for controlled user-facing messages."""
 
-    def __init__(self, title: str, message: str, parent: QFrame | None = None) -> None:
+    def __init__(self, title: str, message: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle(title)
         layout = QVBoxLayout(self)
@@ -69,7 +70,7 @@ class AppDialog(QDialog):
 class Toast(QFrame):
     """Transient floating feedback surface."""
 
-    def __init__(self, preferences: MotionPreferences, parent: QFrame | None = None) -> None:
+    def __init__(self, preferences: MotionPreferences, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._preferences = preferences
         self.setObjectName("toast")
