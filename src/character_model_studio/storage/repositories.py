@@ -12,6 +12,7 @@ import trimesh
 
 from character_model_studio.domain.models import Capture, ModelAttempt, Project
 from character_model_studio.domain.states import AttemptStatus, can_transition
+from character_model_studio.validation.model import ModelValidationReport
 
 
 def _now() -> str:
@@ -171,6 +172,14 @@ class LocalRepository:
                 (attempt_id, target.value, reason, _now()),
             )
         return attempt
+
+    def persist_validation_report(self, attempt_id: str, report: ModelValidationReport) -> None:
+        """Persist the technical static-model report independently of viewer rendering."""
+        with self._connect() as connection:
+            connection.execute(
+                "INSERT OR REPLACE INTO validation_reports VALUES (?, ?, ?, ?)",
+                (attempt_id, report.overall_status.value, json.dumps(report.as_dict()), _now()),
+            )
 
     def create_mock_rig(self, attempt_id: str) -> str:
         attempt = self.get_attempt(attempt_id)

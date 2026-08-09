@@ -23,6 +23,8 @@ from character_model_studio.ui.widgets.controls import (
     StatusIndicator,
 )
 from character_model_studio.ui.widgets.glass import GlassPanel
+from character_model_studio.validation.model import ModelValidationReport
+from character_model_studio.validation.task_runner import ModelValidationTaskRunner
 from character_model_studio.viewer.cameras import CameraPreset
 from character_model_studio.viewer.fixtures import ensure_sample_glb, source_reference_pixmap
 from character_model_studio.viewer.widget import ModelViewport
@@ -45,6 +47,9 @@ class ReviewWorkspace(QWidget):
         self._initialized = False
         self._off_screen = off_screen
         self._viewport: ModelViewport | None = None
+        self._validation_runner = ModelValidationTaskRunner()
+        self._validation_runner.completed.connect(self._show_validation_report)
+        self._validation_runner.failed.connect(self._show_validation_failure)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -67,6 +72,7 @@ class ReviewWorkspace(QWidget):
         )
         self._viewer_placeholder.hide()
         self._control_panel.setEnabled(True)
+        self._validation_runner.start(fixture_path)
 
     def _build_source_panel(self) -> QFrame:
         panel = GlassPanel("secondary", self)
@@ -177,14 +183,14 @@ class ReviewWorkspace(QWidget):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
         layout.addWidget(QLabel("Technical validation", panel))
-        layout.addWidget(StatusIndicator("Fixture preview", "info", panel))
-        validation_text = QLabel(
-            "Static validation is separate from viewer rendering and is implemented in Phase 08.",
-            panel,
+        self._validation_status = StatusIndicator("Validating fixture model", "info", panel)
+        layout.addWidget(self._validation_status)
+        self._validation_text = QLabel(
+            "Checks will appear after background validation completes.", panel
         )
-        validation_text.setWordWrap(True)
-        validation_text.setObjectName("pageSubtitle")
-        layout.addWidget(validation_text)
+        self._validation_text.setWordWrap(True)
+        self._validation_text.setObjectName("pageSubtitle")
+        layout.addWidget(self._validation_text)
         layout.addStretch(1)
         for text, button_type in (
             ("Accept", PrimaryButton),
@@ -205,3 +211,12 @@ class ReviewWorkspace(QWidget):
     def _with_viewport(self, callback: Callable[[ModelViewport], None]) -> None:
         if self._viewport is not None:
             callback(self._viewport)
+
+    def _show_validation_report(self, report: ModelValidationReport) -> None:
+        self._validation_status.label.setText(f"{report.overall_status} · technical checks")
+        details = [f"{check.name}: {check.detail}" for check in report.checks]
+        self._validation_text.setText("\n".join(details))
+
+    def _show_validation_failure(self, message: str) -> None:
+        self._validation_status.label.setText("Validation failed")
+        self._validation_text.setText(f"Validation did not complete: {message}")

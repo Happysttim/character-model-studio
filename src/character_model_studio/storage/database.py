@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-INITIAL_SCHEMA_VERSION = 3
+INITIAL_SCHEMA_VERSION = 4
 
 
 def initialize_database(database_path: Path) -> None:
@@ -50,6 +50,12 @@ def initialize_database(database_path: Path) -> None:
                 decision TEXT NOT NULL,
                 reason TEXT,
                 reviewed_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS validation_reports (
+                attempt_id TEXT PRIMARY KEY REFERENCES model_attempts(id),
+                overall_status TEXT NOT NULL,
+                report_json TEXT NOT NULL,
+                created_at TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS rig_attempts (
                 id TEXT PRIMARY KEY,
