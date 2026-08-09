@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QSize, Qt, QTimer
+from PySide6.QtGui import QPixmap, QResizeEvent
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -31,6 +32,40 @@ class SecondaryButton(QPushButton):
     def __init__(self, text: str, parent: QWidget | None = None) -> None:
         super().__init__(text, parent)
         self.setProperty("buttonKind", "secondary")
+
+
+class AspectRatioPixmapLabel(QLabel):
+    """Preview a source pixmap without stretching its aspect ratio."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._source_pixmap = QPixmap()
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+    def set_source_pixmap(self, pixmap: QPixmap) -> None:
+        """Store the original image and redraw a high-quality fitted preview."""
+        self._source_pixmap = pixmap
+        self._update_preview()
+
+    def resizeEvent(self, event: QResizeEvent) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._update_preview()
+
+    def sizeHint(self) -> QSize:  # noqa: N802
+        if self._source_pixmap.isNull():
+            return super().sizeHint()
+        return self._source_pixmap.size().boundedTo(QSize(960, 540))
+
+    def _update_preview(self) -> None:
+        if self._source_pixmap.isNull() or self.size().isEmpty():
+            return
+        super().setPixmap(
+            self._source_pixmap.scaled(
+                self.size(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+        )
 
 
 class StyledLineEdit(QLineEdit):

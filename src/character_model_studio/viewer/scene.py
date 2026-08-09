@@ -20,6 +20,7 @@ class LoadedModel:
     vertex_count: int
     face_count: int
     vertex_colors: np.ndarray | None
+    base_color_texture: pv.Texture | None
 
 
 def load_glb_model(path: Path) -> LoadedModel:
@@ -34,7 +35,7 @@ def load_glb_model(path: Path) -> LoadedModel:
     if not geometries:
         raise ValueError("The GLB does not contain a triangular mesh.")
 
-    mesh: Any = trimesh.util.concatenate(geometries)
+    mesh: Any = geometries[0] if len(geometries) == 1 else trimesh.util.concatenate(geometries)
     if len(mesh.vertices) == 0 or len(mesh.faces) == 0:
         raise ValueError("The GLB mesh is empty.")
     if not np.isfinite(mesh.vertices).all():
@@ -51,10 +52,25 @@ def load_glb_model(path: Path) -> LoadedModel:
             poly_data["vertex_rgba"] = vertex_colors
         else:
             vertex_colors = None
+    base_color_texture = _load_base_color_texture(mesh, poly_data)
     return LoadedModel(
         source_path=path,
         mesh=poly_data,
         vertex_count=len(mesh.vertices),
         face_count=len(mesh.faces),
         vertex_colors=vertex_colors,
+        base_color_texture=base_color_texture,
     )
+
+
+def _load_base_color_texture(mesh: Any, poly_data: pv.PolyData) -> pv.Texture | None:
+    """Attach a glTF base-color texture and UVs when the GLB supplies both."""
+    if mesh.visual.kind != "texture":
+        return None
+    uv = getattr(mesh.visual, "uv", None)
+    image = getattr(mesh.visual.material, "baseColorTexture", None)
+    if uv is None or image is None or np.shape(uv) != (len(mesh.vertices), 2):
+        return None
+    texture_coordinates = np.asarray(uv, dtype=float)
+    poly_data.active_texture_coordinates = texture_coordinates
+    return pv.Texture(np.asarray(image.convert("RGB")))  # type: ignore[no-untyped-call]

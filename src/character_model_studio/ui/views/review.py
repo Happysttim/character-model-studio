@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 from character_model_studio.app.bootstrap import ApplicationContext
 from character_model_studio.ui.views.workspace import WorkspaceDefinition
 from character_model_studio.ui.widgets.controls import (
+    AspectRatioPixmapLabel,
     PrimaryButton,
     SecondaryButton,
     StatusIndicator,
@@ -97,7 +98,13 @@ class ReviewWorkspace(QWidget):
         model_path = repository.projects_root / attempt.model_relative_path
         metadata = self._viewport.load_glb(model_path)
         self._review_attempt_id = attempt_id
-        appearance = "vertex colors" if metadata.vertex_colors is not None else "untextured Shape"
+        appearance = (
+            "vertex colors"
+            if metadata.vertex_colors is not None
+            else "base-color texture"
+            if metadata.base_color_texture is not None
+            else "untextured Shape"
+        )
         self._model_summary.setText(
             f"Standard Shape GLB · {metadata.vertex_count} vertices · "
             f"{metadata.face_count} faces · {appearance}"
@@ -105,7 +112,7 @@ class ReviewWorkspace(QWidget):
         self._validation_status.label.setText("Validation report persisted for this attempt")
         source_path = repository.attempt_artifact_path(attempt_id, "inputs/selected-frame.png")
         if source_path.is_file():
-            self._source_preview.setPixmap(QPixmap(str(source_path)))
+            self._source_preview.set_source_pixmap(QPixmap(str(source_path)))
         self._validation_runner.start_attempt(repository, attempt_id)
 
     def _build_source_panel(self) -> QFrame:
@@ -116,10 +123,9 @@ class ReviewWorkspace(QWidget):
         layout.setSpacing(10)
         label = QLabel("Source reference", panel)
         label.setProperty("sectionTitle", True)
-        self._source_preview = QLabel(panel)
+        self._source_preview = AspectRatioPixmapLabel(panel)
         self._source_preview.setObjectName("sourceFixturePreview")
-        self._source_preview.setPixmap(source_reference_pixmap())
-        self._source_preview.setScaledContents(True)
+        self._source_preview.set_source_pixmap(source_reference_pixmap())
         self._source_preview.setMinimumHeight(180)
         caption = QLabel("Fixture reference only — no user capture loaded.", panel)
         caption.setWordWrap(True)

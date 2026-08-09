@@ -52,9 +52,12 @@ class ModelViewport(QWidget):
             "name": "review-model",
         }
         if loaded_model.vertex_colors is None:
-            # A Shape-only GLB has no texture/color payload. Keep it neutral so
-            # the UI does not imply that a texture was generated.
-            mesh_options["color"] = "#B8AAA1"
+            if loaded_model.base_color_texture is None:
+                # A Shape-only GLB has no color payload. Keep it neutral so the
+                # UI does not imply that a texture was generated.
+                mesh_options["color"] = "#B8AAA1"
+            else:
+                mesh_options["texture"] = loaded_model.base_color_texture
         else:
             mesh_options["scalars"] = "vertex_rgba"
             mesh_options["rgb"] = True

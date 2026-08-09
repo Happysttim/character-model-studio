@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QPoint, QSize, Qt
-from PySide6.QtGui import QMouseEvent, QShowEvent
+import sys
+from ctypes import wintypes
+from typing import cast
+
+from PySide6.QtCore import QByteArray, QPoint, QSize, Qt
+from PySide6.QtGui import QCursor, QMouseEvent, QShowEvent
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -39,15 +43,27 @@ class WindowTitleBar(QFrame):
         layout.setContentsMargins(16, 0, 8, 0)
         layout.addWidget(QLabel("Character Model Studio", self))
         layout.addStretch(1)
-        for text, action in (
-            ("—", window.showMinimized),
-            ("□", window.showMaximized),
-            ("×", window.close),
+        for text, action, tooltip in (
+            ("−", self._minimize_window, "Minimize"),
+            ("□", self._toggle_maximize, "Maximize or restore"),
+            ("×", window.close, "Close"),
         ):
             button = QPushButton(text, self)
             button.setObjectName("windowControl")
+            button.setToolTip(tooltip)
             button.clicked.connect(action)
             layout.addWidget(button)
+
+    def _minimize_window(self) -> None:
+        """Minimize explicitly; this remains reliable for a frameless Qt window."""
+        self._window.setWindowState(self._window.windowState() | Qt.WindowState.WindowMinimized)
+
+    def _toggle_maximize(self) -> None:
+        """Toggle the app-owned maximize control without relying on native chrome."""
+        if self._window.isMaximized():
+            self._window.showNormal()
+        else:
+            self._window.showMaximized()
 
     def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802
         if event.button() == Qt.MouseButton.LeftButton:
@@ -227,3 +243,46 @@ class MainWindow(QMainWindow):
         if not self._backdrop_requested:
             self._backdrop_requested = True
             enable_system_backdrop(int(self.winId()))
+
+    def nativeEvent(  # noqa: N802
+        self, event_type: QByteArray | bytes | bytearray | memoryview[int], message: int
+    ) -> tuple[bool, int]:
+        """Use Windows hit testing so every frameless window edge can resize natively."""
+        if (
+            sys.platform == "win32"
+            and event_type == b"windows_generic_MSG"
+            and not self.isMaximized()
+        ):
+            native_message = wintypes.MSG.from_address(message)
+            if native_message.message == 0x0084:  # WM_NCHITTEST
+                hit = _window_resize_hit_test(self)
+                if hit is not None:
+                    return True, hit
+        return cast(tuple[bool, int], super().nativeEvent(event_type, message))
+
+
+def _window_resize_hit_test(window: QMainWindow) -> int | None:
+    """Return a Windows sizing hit-test code when the cursor is on a window edge."""
+    border = 8
+    point = window.mapFromGlobal(QCursor.pos())
+    left = point.x() < border
+    right = point.x() >= window.width() - border
+    top = point.y() < border
+    bottom = point.y() >= window.height() - border
+    if top and left:
+        return 13  # HTTOPLEFT
+    if top and right:
+        return 14  # HTTOPRIGHT
+    if bottom and left:
+        return 16  # HTBOTTOMLEFT
+    if bottom and right:
+        return 17  # HTBOTTOMRIGHT
+    if left:
+        return 10  # HTLEFT
+    if right:
+        return 11  # HTRIGHT
+    if top:
+        return 12  # HTTOP
+    if bottom:
+        return 15  # HTBOTTOM
+    return None

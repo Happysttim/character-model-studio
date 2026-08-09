@@ -19,6 +19,7 @@ from character_model_studio.common.cancellation import CancellationToken
 from character_model_studio.domain.models import ProgressUpdate
 from character_model_studio.reconstruction.task_runner import RealStandardWorkflowTaskRunner
 from character_model_studio.ui.widgets.controls import (
+    AspectRatioPixmapLabel,
     PrimaryButton,
     SecondaryButton,
     StatusIndicator,
@@ -196,10 +197,8 @@ class CaptureWorkspace(QWidget):
         panel_layout.addWidget(self._status, alignment=Qt.AlignmentFlag.AlignLeft)
         self._metadata = QLabel("No capture recorded.", panel)
         panel_layout.addWidget(self._metadata)
-        self._poster = QLabel(panel)
+        self._poster = AspectRatioPixmapLabel(panel)
         self._poster.setObjectName("capturePoster")
-        self._poster.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._poster.setScaledContents(True)
         self._poster.setMinimumHeight(180)
         self._poster.hide()
         self._preview = QVideoWidget(panel)
@@ -324,7 +323,7 @@ class CaptureWorkspace(QWidget):
         if poster.isNull():
             self._capture_failed("The saved capture thumbnail could not be opened")
             return
-        self._poster.setPixmap(poster)
+        self._poster.set_source_pixmap(poster)
         self._poster.show()
         self._preview.hide()
         self._play_preview.show()
