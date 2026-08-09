@@ -9,7 +9,7 @@ from PySide6.QtCore import QPoint, QRect, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QColor, QKeyEvent, QMouseEvent, QPainter, QPen, QScreen
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
-from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QLabel, QRadioButton, QVBoxLayout, QWidget
 
 from character_model_studio.app.bootstrap import ApplicationContext
 from character_model_studio.capture.models import CaptureResult, PhysicalRegion
@@ -161,6 +161,16 @@ class CaptureWorkspace(QWidget):
         )
         guidance.setWordWrap(True)
         panel_layout.addWidget(guidance)
+        standard = QRadioButton("Standard — Hunyuan3D 2.0 (Default)", panel)
+        standard.setChecked(True)
+        high_quality = QRadioButton("High Quality — Hunyuan3D 2.1 (Optional)", panel)
+        runtime = context.runtime
+        if runtime is not None:
+            standard.setToolTip(runtime.standard.reason)
+            high_quality.setEnabled(runtime.high_quality.status.value == "READY")
+            high_quality.setToolTip(runtime.high_quality.reason)
+        panel_layout.addWidget(standard)
+        panel_layout.addWidget(high_quality)
         self._action = PrimaryButton("Select & Record", panel)
         self._action.clicked.connect(self.open_selector)
         panel_layout.addWidget(self._action, alignment=Qt.AlignmentFlag.AlignLeft)

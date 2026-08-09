@@ -20,6 +20,7 @@ from character_model_studio.platform.windows.dwm import enable_system_backdrop
 from character_model_studio.ui.motion import MotionPreferences, fade_in
 from character_model_studio.ui.theme import application_stylesheet
 from character_model_studio.ui.views.capture import CaptureWorkspace
+from character_model_studio.ui.views.diagnostics import DiagnosticsWorkspace
 from character_model_studio.ui.views.review import ReviewWorkspace
 from character_model_studio.ui.views.workspace import WORKSPACES, WorkspaceView
 from character_model_studio.ui.widgets.controls import StatusIndicator, Toast
@@ -142,6 +143,9 @@ class MainWindow(QMainWindow):
             elif definition.key == "capture":
                 view = CaptureWorkspace(self._context, self._workspace_stack)
                 self._capture_workspace = view
+            elif definition.key == "diagnostics":
+                view = DiagnosticsWorkspace(self._context, self._workspace_stack)
+                view.reduce_motion.toggled.connect(self._set_reduce_motion)
             else:
                 view = WorkspaceView(definition, self._workspace_stack)
             index = self._workspace_stack.addWidget(view)

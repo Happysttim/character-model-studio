@@ -42,6 +42,8 @@ try {
         'test-storage' { Invoke-ProjectPython @('-m', 'pytest', 'tests/test_database.py', 'tests/test_paths.py') }
         'test-capture' { Invoke-ProjectPython @('-m', 'pytest', 'tests/test_capture.py') }
         'test-ai-mock' { Invoke-ProjectPython @('-m', 'pytest', 'tests/test_mock_workflow.py') }
+        'test-provider-compatibility' { Invoke-ProjectPython @('-m', 'character_model_studio.tools.provider_compatibility') }
+        'test-gpu' { Invoke-ProjectPython @('-m', 'character_model_studio.tools.gpu_smoke') }
         'verify' {
             Invoke-ProjectPython @('-m', 'ruff', 'format', '--check', 'src', 'tests')
             Invoke-ProjectPython @('-m', 'ruff', 'check', 'src', 'tests')

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from logging import Logger
 
+from character_model_studio.app.capabilities import RuntimeCapabilities, probe_runtime
 from character_model_studio.common.logging import configure_logging
 from character_model_studio.platform.windows.paths import (
     ApplicationPaths,
@@ -19,6 +20,7 @@ class ApplicationContext:
 
     paths: ApplicationPaths
     logger: Logger
+    runtime: RuntimeCapabilities | None = None
 
 
 def create_application_context() -> ApplicationContext:
@@ -27,5 +29,6 @@ def create_application_context() -> ApplicationContext:
     paths.ensure_exists()
     logger = configure_logging(paths.logs_directory)
     initialize_database(paths.database_path)
+    runtime = probe_runtime()
     logger.info("Application context initialized")
-    return ApplicationContext(paths=paths, logger=logger)
+    return ApplicationContext(paths=paths, logger=logger, runtime=runtime)
