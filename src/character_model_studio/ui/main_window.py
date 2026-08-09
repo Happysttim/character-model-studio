@@ -19,6 +19,7 @@ from character_model_studio.app.bootstrap import ApplicationContext
 from character_model_studio.platform.windows.dwm import enable_system_backdrop
 from character_model_studio.ui.motion import MotionPreferences, fade_in
 from character_model_studio.ui.theme import application_stylesheet
+from character_model_studio.ui.views.capture import CaptureWorkspace
 from character_model_studio.ui.views.review import ReviewWorkspace
 from character_model_studio.ui.views.workspace import WORKSPACES, WorkspaceView
 from character_model_studio.ui.widgets.controls import StatusIndicator, Toast
@@ -63,6 +64,14 @@ class MainWindow(QMainWindow):
         for key, button in self._navigation_buttons.items():
             button.setChecked(key == destination)
         fade_in(self._page_header, self._motion_preferences)
+
+    def handle_capture_hotkey(self) -> None:
+        """Toggle the capture flow when Windows delivers Ctrl+Alt+S."""
+        self.navigate("capture")
+        if self._capture_workspace.is_recording:
+            self._capture_workspace.stop_recording()
+        else:
+            self._capture_workspace.open_selector()
 
     def _build_shell(self) -> None:
         root = QWidget(self)
@@ -130,6 +139,9 @@ class MainWindow(QMainWindow):
             view: QWidget
             if definition.key == "review":
                 view = ReviewWorkspace(self._context, definition, self._workspace_stack)
+            elif definition.key == "capture":
+                view = CaptureWorkspace(self._context, self._workspace_stack)
+                self._capture_workspace = view
             else:
                 view = WorkspaceView(definition, self._workspace_stack)
             index = self._workspace_stack.addWidget(view)

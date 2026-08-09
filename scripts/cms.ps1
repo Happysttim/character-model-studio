@@ -40,6 +40,7 @@ try {
         'test' { Invoke-ProjectPython @('-m', 'pytest') }
         'test-ui' { Invoke-ProjectPython @('-m', 'pytest', 'tests/ui') }
         'test-storage' { Invoke-ProjectPython @('-m', 'pytest', 'tests/test_database.py', 'tests/test_paths.py') }
+        'test-capture' { Invoke-ProjectPython @('-m', 'pytest', 'tests/test_capture.py') }
         'test-ai-mock' { Invoke-ProjectPython @('-m', 'pytest', 'tests/test_mock_workflow.py') }
         'verify' {
             Invoke-ProjectPython @('-m', 'ruff', 'format', '--check', 'src', 'tests')

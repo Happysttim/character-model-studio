@@ -8,6 +8,7 @@ from collections.abc import Sequence
 from PySide6.QtWidgets import QApplication
 
 from character_model_studio.app.bootstrap import create_application_context
+from character_model_studio.platform.windows.hotkey import WindowsCaptureHotkey
 from character_model_studio.ui.main_window import MainWindow
 from character_model_studio.ui.theme import application_stylesheet
 
@@ -19,5 +20,9 @@ def run(argv: Sequence[str] | None = None) -> int:
     application.setStyleSheet(application_stylesheet())
     context = create_application_context()
     window = MainWindow(context)
+    hotkey = WindowsCaptureHotkey(window.handle_capture_hotkey)
+    application.installNativeEventFilter(hotkey)
+    hotkey.register()
+    application.aboutToQuit.connect(hotkey.release)
     window.show()
     return application.exec()
