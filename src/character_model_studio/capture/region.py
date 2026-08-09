@@ -40,6 +40,10 @@ def to_physical_region(selection: LogicalRect, monitor: MonitorGeometry) -> Phys
     height = round(selection.height * scale)
     if width < MIN_CAPTURE_DIMENSION or height < MIN_CAPTURE_DIMENSION:
         raise ValueError(f"Capture region must be at least {MIN_CAPTURE_DIMENSION} physical pixels")
+    # yuv420p H.264 requires even frame dimensions. Trim the far edge by one
+    # physical pixel when needed so the encoded MP4 exactly matches the capture region.
+    width -= width % 2
+    height -= height % 2
     return PhysicalRegion(
         left=round((selection.x - monitor.x) * scale),
         top=round((selection.y - monitor.y) * scale),

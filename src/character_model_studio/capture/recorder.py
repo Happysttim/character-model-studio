@@ -67,6 +67,11 @@ class PyAvH264Encoder:
     """MP4/H.264 encoder that receives BGR NumPy frames locally."""
 
     def __init__(self, path: Path, width: int, height: int, fps: int) -> None:
+        if width % 2 or height % 2:
+            raise ValueError(
+                "H.264 recording requires even pixel dimensions; "
+                "select a region with even width and height"
+            )
         path.parent.mkdir(parents=True, exist_ok=True)
         self._container = av.open(str(path), mode="w", format="mp4")
         self._stream = self._container.add_stream("libx264", rate=fps)

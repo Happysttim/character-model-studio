@@ -81,6 +81,14 @@ def test_region_conversion_rejects_cross_monitor_and_too_small_selection() -> No
         raise AssertionError("Small selection must be rejected")
 
 
+def test_region_conversion_trims_odd_dimensions_for_h264_yuv420p() -> None:
+    monitor = MonitorGeometry("primary", 0, 0, 1920, 1080, 1.0)
+
+    region = to_physical_region(LogicalRect(100, 100, 641, 481), monitor)
+
+    assert (region.width, region.height) == (640, 480)
+
+
 def test_capture_session_stops_idempotently_and_releases_resources(qtbot, tmp_path) -> None:
     sources: list[FixtureFrameSource] = []
 
@@ -120,5 +128,10 @@ def test_pyav_encoder_writes_reopenable_h264_mp4(tmp_path) -> None:
     with av.open(str(output)) as container:
         stream = container.streams.video[0]
         assert stream.codec_context.name == "h264"
-        assert stream.width == 320
-        assert stream.height == 240
+    assert stream.width == 320
+    assert stream.height == 240
+
+
+def test_pyav_encoder_rejects_odd_h264_dimensions(tmp_path) -> None:
+    with pytest.raises(ValueError, match="even pixel dimensions"):
+        PyAvH264Encoder(tmp_path / "odd.mp4", 641, 481, 30)
