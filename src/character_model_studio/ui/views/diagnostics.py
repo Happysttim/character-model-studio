@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from PySide6.QtCore import QUrl
+from PySide6.QtGui import QDesktopServices, QGuiApplication
 from PySide6.QtWidgets import QCheckBox, QLabel, QVBoxLayout, QWidget
 
 from character_model_studio.app.bootstrap import ApplicationContext
+from character_model_studio.ui.widgets.controls import SecondaryButton
 from character_model_studio.ui.widgets.glass import GlassPanel
 
 
@@ -39,9 +42,21 @@ class DiagnosticsWorkspace(QWidget):
         panel_layout.addWidget(label)
         self.reduce_motion = QCheckBox("Reduce motion", panel)
         panel_layout.addWidget(self.reduce_motion)
+        copy_diagnostics = SecondaryButton("Copy diagnostics", panel)
+        copy_diagnostics.clicked.connect(lambda: _copy_diagnostics(text))
+        panel_layout.addWidget(copy_diagnostics)
+        open_logs = SecondaryButton("Open log folder", panel)
+        open_logs.clicked.connect(
+            lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(context.paths.logs_directory)))
+        )
+        panel_layout.addWidget(open_logs)
         layout.addWidget(panel)
         layout.addStretch(1)
 
 
 def _format_gib(value: int | None) -> str:
     return "unavailable" if value is None else f"{value / 1024**3:.1f} GiB"
+
+
+def _copy_diagnostics(text: str) -> None:
+    QGuiApplication.clipboard().setText(text)

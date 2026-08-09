@@ -13,6 +13,7 @@ from character_model_studio.platform.windows.paths import (
     resolve_application_paths,
 )
 from character_model_studio.storage.database import initialize_database
+from character_model_studio.storage.repositories import LocalRepository
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +37,9 @@ def create_application_context() -> ApplicationContext:
     os.environ.setdefault("HF_HOME", str(huggingface_cache))
     logger = configure_logging(paths.logs_directory)
     initialize_database(paths.database_path)
+    recovered_attempts = LocalRepository(
+        paths.database_path, paths.projects_directory
+    ).recover_interrupted_attempts()
     runtime = probe_runtime()
-    logger.info("Application context initialized")
+    logger.info("Application context initialized; recovered_attempts=%s", recovered_attempts)
     return ApplicationContext(paths=paths, logger=logger, runtime=runtime)

@@ -7,12 +7,15 @@ import sqlite3
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import trimesh
 
 from character_model_studio.domain.models import Capture, ModelAttempt, Project
 from character_model_studio.domain.states import AttemptStatus, can_transition
-from character_model_studio.validation.model import ModelValidationReport
+
+if TYPE_CHECKING:
+    from character_model_studio.validation.model import ModelValidationReport
 
 
 def _now() -> str:
@@ -26,6 +29,11 @@ class LocalRepository:
         self._database_path = database_path
         self._projects_root = projects_root
 
+    @property
+    def projects_root(self) -> Path:
+        """Return the managed root used to resolve project-relative artifacts."""
+        return self._projects_root
+
     def create_project(self, name: str) -> Project:
         project_id = uuid.uuid4().hex
         created_at = _now()
@@ -35,6 +43,34 @@ class LocalRepository:
                 "INSERT INTO projects VALUES (?, ?, ?)", (project_id, name, created_at)
             )
         return Project(project_id, name, datetime.fromisoformat(created_at))
+
+    def list_projects(self) -> list[Project]:
+        """Return local project history in stable newest-first order for reopening."""
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT id, name, created_at FROM projects ORDER BY created_at DESC, id DESC"
+            ).fetchall()
+        return [Project(row[0], row[1], datetime.fromisoformat(row[2])) for row in rows]
+
+    def recover_interrupted_attempts(self) -> int:
+        """Mark transient attempts failed after an abnormal application exit."""
+        transient = tuple(
+            status.value
+            for status in (
+                AttemptStatus.PREPROCESSING,
+                AttemptStatus.RECONSTRUCTING,
+                AttemptStatus.TEXTURING,
+                AttemptStatus.VALIDATING_MODEL,
+            )
+        )
+        placeholders = ", ".join("?" for _ in transient)
+        with self._connect() as connection:
+            cursor = connection.execute(
+                f"UPDATE model_attempts SET status = ?, finished_at = ? "
+                f"WHERE status IN ({placeholders})",
+                (AttemptStatus.FAILED.value, _now(), *transient),
+            )
+        return cursor.rowcount
 
     def create_fixture_capture(self, project_id: str) -> Capture:
         capture_id = uuid.uuid4().hex
