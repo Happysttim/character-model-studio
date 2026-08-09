@@ -64,6 +64,7 @@ def main() -> int:
                     "result_exists": result_path.is_file(),
                     "project_relative_model": completed.model_relative_path,
                     "metrics_persisted": bool(persisted),
+                    "validation_status": repository.validation_status(attempt.id),
                     "vertex_count": persisted.get("vertex_count"),
                     "face_count": persisted.get("face_count"),
                 }

@@ -16,7 +16,7 @@ from character_model_studio.domain.states import AttemptStatus
 from character_model_studio.reconstruction.preprocessing import select_representative_frame
 from character_model_studio.reconstruction.providers.hunyuan2 import Hunyuan3D20Provider
 from character_model_studio.storage.repositories import LocalRepository
-from character_model_studio.viewer.scene import load_glb_model
+from character_model_studio.validation.model import ModelValidator, ValidationStatus
 
 
 class StandardShapeWorkflow:
@@ -69,10 +69,11 @@ class StandardShapeWorkflow:
                 AttemptStatus.VALIDATING_MODEL,
                 repository.as_project_relative_path(output_path),
             )
-            progress(
-                ProgressUpdate("viewer", "Checking generated GLB in the embedded viewer", 90, False)
-            )
-            viewer_model = load_glb_model(output_path)
+            progress(ProgressUpdate("validate", "Validating the generated GLB", 90, False))
+            validation = ModelValidator().validate(output_path)
+            repository.persist_validation_report(attempt_id, validation)
+            if validation.overall_status is ValidationStatus.FAIL:
+                raise RuntimeError("Generated Shape GLB failed technical validation")
             metrics: dict[str, object] = {
                 "operation": "shape_reconstruction",
                 "quality_mode": "standard",
@@ -94,8 +95,9 @@ class StandardShapeWorkflow:
                     "output_path": repository.as_project_relative_path(input_path),
                 },
                 "output_path": repository.as_project_relative_path(output_path),
-                "vertex_count": viewer_model.vertex_count,
-                "face_count": viewer_model.face_count,
+                "vertex_count": validation.metrics["vertex_count"],
+                "face_count": validation.metrics["face_count"],
+                "validation_status": validation.overall_status.value,
                 "texture_stage": "not_requested",
             }
             repository.persist_attempt_metrics(attempt_id, metrics)

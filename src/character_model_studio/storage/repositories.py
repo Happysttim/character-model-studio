@@ -299,6 +299,14 @@ class LocalRepository:
                 (attempt_id, report.overall_status.value, json.dumps(report.as_dict()), _now()),
             )
 
+    def validation_status(self, attempt_id: str) -> str | None:
+        """Return the persisted static validation outcome for an attempt, when available."""
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT overall_status FROM validation_reports WHERE attempt_id = ?", (attempt_id,)
+            ).fetchone()
+        return None if row is None else str(row[0])
+
     def create_mock_rig(self, attempt_id: str) -> str:
         attempt = self.get_attempt(attempt_id)
         if attempt.status is not AttemptStatus.ACCEPTED:

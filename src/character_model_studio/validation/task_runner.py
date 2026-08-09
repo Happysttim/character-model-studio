@@ -6,6 +6,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, QThread, Signal, Slot
 
+from character_model_studio.storage.repositories import LocalRepository
 from character_model_studio.validation.model import ModelValidator
 
 
@@ -13,14 +14,24 @@ class _ValidationWorker(QObject):
     completed = Signal(object)
     failed = Signal(str)
 
-    def __init__(self, path: Path) -> None:
+    def __init__(
+        self,
+        path: Path,
+        repository: LocalRepository | None = None,
+        attempt_id: str | None = None,
+    ) -> None:
         super().__init__()
         self._path = path
+        self._repository = repository
+        self._attempt_id = attempt_id
 
     @Slot()
     def run(self) -> None:
         try:
-            self.completed.emit(ModelValidator().validate(self._path))
+            report = ModelValidator().validate(self._path)
+            if self._repository is not None and self._attempt_id is not None:
+                self._repository.persist_validation_report(self._attempt_id, report)
+            self.completed.emit(report)
         except (OSError, RuntimeError, ValueError) as error:
             self.failed.emit(str(error))
 
@@ -39,10 +50,27 @@ class ModelValidationTaskRunner(QObject):
 
     def start(self, path: Path) -> None:
         """Start validation; a second concurrent request is rejected explicitly."""
+        self._start_worker(path)
+
+    def start_attempt(self, repository: LocalRepository, attempt_id: str) -> None:
+        """Validate and persist an existing attempt's GLB outside the UI thread."""
+        attempt = repository.get_attempt(attempt_id)
+        if attempt.model_relative_path is None:
+            raise ValueError("The attempt has no generated model artifact")
+        self._start_worker(
+            repository.projects_root / attempt.model_relative_path, repository, attempt_id
+        )
+
+    def _start_worker(
+        self,
+        path: Path,
+        repository: LocalRepository | None = None,
+        attempt_id: str | None = None,
+    ) -> None:
         if self._thread is not None:
             raise RuntimeError("A model validation task is already running")
         thread = QThread(self)
-        worker = _ValidationWorker(path)
+        worker = _ValidationWorker(path, repository, attempt_id)
         worker.moveToThread(thread)
         thread.started.connect(worker.run)
         worker.completed.connect(lambda report: self._record_outcome("completed", report))

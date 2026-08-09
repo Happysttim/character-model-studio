@@ -18,11 +18,20 @@ powershell -ExecutionPolicy Bypass -File .\scripts\cms.ps1 test-model-validation
 powershell -ExecutionPolicy Bypass -File .\scripts\cms.ps1 verify
 ```
 
-The fixture suite passed valid untextured GLB, malformed data, empty data, fragmented geometry, viewer conversion, and persisted-report coverage. Full verification passed format, lint, strict type checks, and twenty-five tests.
+The fixture suite passed valid untextured GLB, malformed data, empty data, fragmented geometry, viewer conversion,
+and persisted-report coverage. Full verification passed format, lint, strict type checks, and twenty-eight tests.
+
+## Real Provider Evidence
+
+The actual local Hunyuan3D 2.0 Standard Shape workflow now runs the validator after CUDA mesh generation, persists the
+report before publishing review readiness, and records the validation outcome in attempt provenance. The offline
+workflow smoke completed with `READY_FOR_REVIEW` and a persisted `PASS` report. Its detailed machine-specific
+telemetry remains only in the configured local application-data directory.
 
 ## Warning
 
-The same persistence/validation path was exercised using the local Mock workflow GLB. A real Hunyuan-generated model cannot yet be validated because Phase 07 remains blocked pending model weights and real inference. No claim is made that a real generated model has passed validation.
+The real workflow smoke uses a generated local MP4 fixture rather than a user capture. The full capture-to-review UI
+interaction remains Phase 09 integration work.
 
 ## Boundary
 
