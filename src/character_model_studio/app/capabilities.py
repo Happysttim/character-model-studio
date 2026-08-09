@@ -116,11 +116,12 @@ def probe_runtime() -> RuntimeCapabilities:
         )
     tier = classify_vram(gpu.total_vram_bytes)
     capability_set = _capabilities(gpu.cuda_available, tier)
+    standard = _standard_provider_readiness(capability_set)
     return RuntimeCapabilities(
         gpu,
         tier,
         capability_set,
-        _provider_readiness("Hunyuan3D 2.0", "hy3dgen", Capability.STANDARD_SHAPE, capability_set),
+        standard,
         _provider_readiness(
             "Hunyuan3D 2.1", "hunyuan3d_2_1", Capability.HIGH_QUALITY_SHAPE, capability_set
         ),
@@ -202,6 +203,37 @@ def _provider_readiness(
         provider,
         ReadinessStatus.PROVIDER_RUNTIME_INCOMPATIBLE,
         "Provider adapter discovery succeeded; initialization smoke test is not implemented",
+        True,
+        True,
+    )
+
+
+def _standard_provider_readiness(capabilities: frozenset[Capability]) -> ProviderReadiness:
+    """Check Hunyuan 2.0 adapter and local Shape artifacts without loading its weights."""
+    readiness = _provider_readiness(
+        "Hunyuan3D 2.0", "hy3dgen", Capability.STANDARD_SHAPE, capabilities
+    )
+    if readiness.status is not ReadinessStatus.PROVIDER_RUNTIME_INCOMPATIBLE:
+        return readiness
+    try:
+        from character_model_studio.reconstruction.model_paths import (
+            LocalModelUnavailableError,
+            resolve_hunyuan3d_2_shape_snapshot,
+        )
+
+        resolve_hunyuan3d_2_shape_snapshot()
+    except LocalModelUnavailableError as error:
+        return ProviderReadiness(
+            "Hunyuan3D 2.0",
+            ReadinessStatus.PROVIDER_RUNTIME_INCOMPATIBLE,
+            str(error),
+            True,
+            True,
+        )
+    return ProviderReadiness(
+        "Hunyuan3D 2.0",
+        ReadinessStatus.READY,
+        "Local Shape checkpoint is ready; weights remain lazy-loaded until reconstruction starts",
         True,
         True,
     )

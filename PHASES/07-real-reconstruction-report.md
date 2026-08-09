@@ -1,6 +1,6 @@
 # Phase 07 Real Reconstruction Pipeline Report
 
-**Status:** `BLOCKED_BY_ENVIRONMENT`
+**Status:** `PASS_WITH_WARNINGS`
 
 ## Completed Foundation Work
 
@@ -11,20 +11,41 @@
 - Added a lazy Hunyuan3D 2.0 Standard provider adapter with CUDA-only load behavior, cancellation checks, canonical GLB export, and explicit unload/cache release.
 - Proved `hy3dgen.shapegen` imports in the project Python 3.11 + CUDA runtime without loading model weights.
 
-## Validation
+## Real Standard Shape Validation
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\cms.ps1 bootstrap
 powershell -ExecutionPolicy Bypass -File .\scripts\cms.ps1 verify
+powershell -ExecutionPolicy Bypass -File .\scripts\cms.ps1 test-reconstruction
 ```
 
-The full project verification passed format, lint, strict type checks, and all automated tests. The installed Standard adapter's lazy probe and the configured local cache environment passed without downloading weights.
+The Standard Shape smoke test resolved only the configured local Hugging Face cache. It did not invoke an
+online model download, CPU fallback, Mock provider, Texture provider, Hunyuan3D 2.1, or any rigging provider.
+It loaded the Shape pipeline on CUDA, proved the DiT model, VAE, and conditioner parameter devices were CUDA,
+generated a non-empty GLB, passed static model validation, converted the GLB for the embedded viewer, and unloaded
+the provider before recording post-unload VRAM telemetry.
 
-## Blocker
+The runtime result is written only to the configured local application data directory as structured telemetry. It
+contains the dynamic device, cache, checkpoint, timing, output, geometry, validation, and VRAM measurements without
+committing machine-specific values to this repository.
 
-No Hunyuan3D 2.0 model weights are present in the configured local cache. The official `from_pretrained` load would therefore initiate a model download, which was not requested in the dependency/cache setup step. No provider load, real inference, GLB output, or texture result is claimed.
+## Shape Snapshot Completeness
 
-Consequently, Phase 07 acceptance criteria requiring a representative capture to generate a real local GLB cannot yet be met. High Quality remains unavailable and is not substituted for Standard.
+The upstream Shape pipeline's `hunyuan3d-dit-v2-0/config.yaml` describes its DiT model, ShapeVAE, conditioner,
+scheduler, and image processor. The selected fp16 safetensors Shape checkpoint contains their state and is sufficient
+for Shape-only initialization. No separate repository-level config, VAE directory, image processor directory, or
+Texture model is required for this tested Shape path.
+
+The Hugging Face cache client considers a Shape-only snapshot incomplete because unrelated repository files are absent.
+The application therefore resolves the local cache index and then validates the exact Shape config and checkpoint it
+uses. This avoids a full repository download while preserving an offline-only inference path.
+
+## Remaining Warnings
+
+- The smoke input is a generated neutral RGBA fixture, not a user capture; capture-to-real-provider UI acceptance
+  remains a manual follow-up.
+- Texture generation, Hunyuan3D 2.1, auto-rigging, and animation were intentionally not loaded or tested.
+- High Quality readiness remains independently gated by its provider/runtime and VRAM policy.
 
 ## Privacy
 
@@ -32,4 +53,4 @@ The cache configuration is derived dynamically from the configured application d
 
 ## Next Required Authority
 
-Explicit authorization to download the official Hunyuan3D 2.0 weights into the configured local cache is required before the real Standard load/inference smoke test can run.
+Do not begin a later phase without explicit user authorization.
