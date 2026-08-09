@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-INITIAL_SCHEMA_VERSION = 4
+INITIAL_SCHEMA_VERSION = 5
 
 
 def initialize_database(database_path: Path) -> None:
@@ -40,6 +40,9 @@ def initialize_database(database_path: Path) -> None:
                 status TEXT NOT NULL,
                 quality_mode TEXT NOT NULL,
                 provider TEXT NOT NULL,
+                provider_version TEXT,
+                parameters_json TEXT,
+                metrics_json TEXT,
                 model_relative_path TEXT,
                 texture_relative_path TEXT,
                 created_at TEXT NOT NULL,
@@ -82,6 +85,12 @@ def initialize_database(database_path: Path) -> None:
         }
         if "texture_relative_path" not in attempt_columns:
             connection.execute("ALTER TABLE model_attempts ADD COLUMN texture_relative_path TEXT")
+        if "provider_version" not in attempt_columns:
+            connection.execute("ALTER TABLE model_attempts ADD COLUMN provider_version TEXT")
+        if "parameters_json" not in attempt_columns:
+            connection.execute("ALTER TABLE model_attempts ADD COLUMN parameters_json TEXT")
+        if "metrics_json" not in attempt_columns:
+            connection.execute("ALTER TABLE model_attempts ADD COLUMN metrics_json TEXT")
         connection.execute(
             "INSERT OR IGNORE INTO schema_metadata (singleton, schema_version) VALUES (1, ?)",
             (INITIAL_SCHEMA_VERSION,),

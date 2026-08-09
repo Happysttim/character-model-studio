@@ -29,6 +29,13 @@ The runtime result is written only to the configured local application data dire
 contains the dynamic device, cache, checkpoint, timing, output, geometry, validation, and VRAM measurements without
 committing machine-specific values to this repository.
 
+The persisted workflow smoke also created a local MP4 capture, selected and normalized a representative frame,
+copied the approved capture into a project-relative location, generated a real Shape GLB, performed the viewer
+conversion check, persisted provider/version/frame/VRAM/timing/geometry provenance, and reached
+`READY_FOR_REVIEW`. Reconstruction execution is available through an application-owned Qt worker rather than a UI
+thread. SQLite connections now close after every repository operation, including on Windows where retained file
+handles would otherwise prevent cleanup.
+
 ## Shape Snapshot Completeness
 
 The upstream Shape pipeline's `hunyuan3d-dit-v2-0/config.yaml` describes its DiT model, ShapeVAE, conditioner,

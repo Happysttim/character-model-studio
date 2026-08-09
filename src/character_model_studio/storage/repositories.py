@@ -5,8 +5,11 @@ from __future__ import annotations
 import json
 import sqlite3
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
+from shutil import copy2
 from typing import TYPE_CHECKING
 
 import trimesh
@@ -84,10 +87,36 @@ class LocalRepository:
             )
         return Capture(capture_id, project_id, relative_path)
 
-    def create_attempt(self, capture_id: str, quality_mode: str) -> ModelAttempt:
+    def register_capture_file(self, project_id: str, source_path: Path) -> Capture:
+        """Copy a user-approved local capture into its managed project-relative location."""
+        if not source_path.is_file():
+            raise FileNotFoundError(f"Capture file does not exist: {source_path}")
+        capture_id = uuid.uuid4().hex
+        suffix = source_path.suffix.lower() or ".mp4"
+        relative_path = f"{project_id}/captures/{capture_id}/capture{suffix}"
+        destination = self._projects_root / relative_path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        copy2(source_path, destination)
+        with self._connect() as connection:
+            connection.execute(
+                "INSERT INTO captures VALUES (?, ?, ?)", (capture_id, project_id, relative_path)
+            )
+        return Capture(capture_id, project_id, relative_path)
+
+    def create_attempt(
+        self,
+        capture_id: str,
+        quality_mode: str,
+        *,
+        provider: str | None = None,
+        provider_version: str | None = None,
+        parameters: dict[str, object] | None = None,
+    ) -> ModelAttempt:
         if quality_mode not in {"standard", "high_quality"}:
             raise ValueError(f"Unsupported mock quality mode: {quality_mode}")
-        provider = "mock-hunyuan3d-2" if quality_mode == "standard" else "mock-hunyuan3d-2.1"
+        provider = provider or (
+            "mock-hunyuan3d-2" if quality_mode == "standard" else "mock-hunyuan3d-2.1"
+        )
         attempt_id = uuid.uuid4().hex
         with self._connect() as connection:
             sequence = (
@@ -98,8 +127,9 @@ class LocalRepository:
             )
             connection.execute(
                 "INSERT INTO model_attempts "
-                "(id, capture_id, sequence_number, status, quality_mode, provider, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "(id, capture_id, sequence_number, status, quality_mode, provider, "
+                "provider_version, "
+                "parameters_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     attempt_id,
                     capture_id,
@@ -107,6 +137,8 @@ class LocalRepository:
                     AttemptStatus.CREATED.value,
                     quality_mode,
                     provider,
+                    provider_version,
+                    json.dumps(parameters or {}),
                     _now(),
                 ),
             )
@@ -119,6 +151,9 @@ class LocalRepository:
             provider,
             None,
             None,
+            provider_version,
+            parameters or {},
+            None,
         )
 
     def regenerate(self, attempt_id: str) -> ModelAttempt:
@@ -130,13 +165,24 @@ class LocalRepository:
         with self._connect() as connection:
             rows = connection.execute(
                 "SELECT id, capture_id, sequence_number, status, quality_mode, "
-                "provider, model_relative_path, texture_relative_path "
+                "provider, model_relative_path, texture_relative_path, provider_version, "
+                "parameters_json, metrics_json "
                 "FROM model_attempts WHERE capture_id = ? ORDER BY sequence_number",
                 (capture_id,),
             ).fetchall()
         return [
             ModelAttempt(
-                row[0], row[1], row[2], AttemptStatus(row[3]), row[4], row[5], row[6], row[7]
+                row[0],
+                row[1],
+                row[2],
+                AttemptStatus(row[3]),
+                row[4],
+                row[5],
+                row[6],
+                row[7],
+                row[8],
+                json.loads(row[9] or "{}"),
+                json.loads(row[10]) if row[10] else None,
             )
             for row in rows
         ]
@@ -189,15 +235,51 @@ class LocalRepository:
         with self._connect() as connection:
             row = connection.execute(
                 "SELECT id, capture_id, sequence_number, status, quality_mode, "
-                "provider, model_relative_path, texture_relative_path "
+                "provider, model_relative_path, texture_relative_path, provider_version, "
+                "parameters_json, metrics_json "
                 "FROM model_attempts WHERE id = ?",
                 (attempt_id,),
             ).fetchone()
         if row is None:
             raise KeyError(attempt_id)
         return ModelAttempt(
-            row[0], row[1], row[2], AttemptStatus(row[3]), row[4], row[5], row[6], row[7]
+            row[0],
+            row[1],
+            row[2],
+            AttemptStatus(row[3]),
+            row[4],
+            row[5],
+            row[6],
+            row[7],
+            row[8],
+            json.loads(row[9] or "{}"),
+            json.loads(row[10]) if row[10] else None,
         )
+
+    def get_capture(self, capture_id: str) -> Capture:
+        """Return capture metadata needed by a local preprocessing worker."""
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT id, project_id, relative_path FROM captures WHERE id = ?", (capture_id,)
+            ).fetchone()
+        if row is None:
+            raise KeyError(capture_id)
+        return Capture(row[0], row[1], row[2])
+
+    def persist_attempt_metrics(self, attempt_id: str, metrics: dict[str, object]) -> None:
+        """Store non-sensitive, reproducible runtime metrics for a local AI attempt."""
+        with self._connect() as connection:
+            connection.execute(
+                "UPDATE model_attempts SET metrics_json = ? WHERE id = ?",
+                (json.dumps(metrics), attempt_id),
+            )
+
+    def write_attempt_metadata(self, attempt_id: str, metadata: dict[str, object]) -> Path:
+        """Persist project-relative provenance without retaining raw input bytes in SQLite."""
+        output = self.attempt_artifact_path(attempt_id, "attempt.json")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+        return output
 
     def decide(self, attempt_id: str, accepted: bool, reason: str | None = None) -> ModelAttempt:
         target = AttemptStatus.ACCEPTED if accepted else AttemptStatus.REJECTED
@@ -247,7 +329,16 @@ class LocalRepository:
             )
         return pose_id, clip_id
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        """Yield one short-lived SQLite connection and always release its Windows file handle."""
         connection = sqlite3.connect(self._database_path)
         connection.execute("PRAGMA foreign_keys = ON")
-        return connection
+        try:
+            yield connection
+            connection.commit()
+        except BaseException:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()

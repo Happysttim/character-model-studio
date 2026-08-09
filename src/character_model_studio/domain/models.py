@@ -32,6 +32,9 @@ class ModelAttempt:
     provider: str
     model_relative_path: str | None
     texture_relative_path: str | None
+    provider_version: str | None = None
+    parameters: dict[str, object] | None = None
+    metrics: dict[str, object] | None = None
 
 
 @dataclass(frozen=True, slots=True)
