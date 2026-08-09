@@ -15,6 +15,9 @@ from character_model_studio.app.bootstrap import ApplicationContext
 from character_model_studio.capture.models import CaptureResult, PhysicalRegion
 from character_model_studio.capture.region import LogicalRect, MonitorGeometry, to_physical_region
 from character_model_studio.capture.session import CaptureSession
+from character_model_studio.common.cancellation import CancellationToken
+from character_model_studio.domain.models import ProgressUpdate
+from character_model_studio.reconstruction.task_runner import RealStandardWorkflowTaskRunner
 from character_model_studio.ui.widgets.controls import (
     PrimaryButton,
     SecondaryButton,
@@ -188,11 +191,22 @@ class CaptureWorkspace(QWidget):
         self._discard.clicked.connect(self.discard_capture)
         self._discard.hide()
         panel_layout.addWidget(self._discard, alignment=Qt.AlignmentFlag.AlignLeft)
+        self._generate = PrimaryButton("Generate Standard Shape", panel)
+        self._generate.clicked.connect(self._start_reconstruction)
+        self._generate.hide()
+        panel_layout.addWidget(self._generate, alignment=Qt.AlignmentFlag.AlignLeft)
         layout.addWidget(panel)
         layout.addStretch(1)
         self._session.completed.connect(self._capture_completed)
         self._session.failed.connect(self._capture_failed)
         self._last_result: CaptureResult | None = None
+        self._capture_id: str | None = None
+        self._reconstruction_runner = RealStandardWorkflowTaskRunner()
+        self._reconstruction_runner.progress.connect(self._show_reconstruction_progress)
+        self._reconstruction_runner.completed.connect(self._reconstruction_completed)
+        self._reconstruction_runner.cancelled.connect(self._reconstruction_cancelled)
+        self._reconstruction_runner.failed.connect(self._reconstruction_failed)
+        self._reconstruction_token: CancellationToken | None = None
 
     @property
     def is_recording(self) -> bool:
@@ -239,14 +253,70 @@ class CaptureWorkspace(QWidget):
             f"{result.width} × {result.height} · {result.fps} FPS"
         )
         self._last_result = result
+        repository = self._context.repository
+        if repository is None:
+            self._capture_failed("Local repository is unavailable")
+            return
+        project = repository.create_project("Captured character project")
+        self._capture_id = repository.register_capture_file(project.id, result.video_path).id
         self._player.setSource(QUrl.fromLocalFile(str(result.video_path)))
         self._preview.show()
         self._discard.show()
+        standard_ready = (
+            self._context.runtime is not None
+            and self._context.runtime.standard.status.value == "READY"
+        )
+        self._generate.setEnabled(standard_ready)
+        self._generate.setToolTip(
+            "Run local Hunyuan3D 2.0 Shape on CUDA"
+            if standard_ready
+            else "Standard Shape is unavailable"
+        )
+        self._generate.show()
 
     def _capture_failed(self, message: str) -> None:
         self._indicator.stop()
         self._status.label.setText("Capture unavailable")
         self._metadata.setText(f"Capture failed: {message}. Existing project data was preserved.")
+
+    def _start_reconstruction(self) -> None:
+        if self._reconstruction_token is not None:
+            self._reconstruction_token.cancel()
+            self._status.label.setText("Cancellation requested; releasing the local CUDA provider")
+            return
+        repository = self._context.repository
+        if repository is None or self._capture_id is None:
+            self._status.label.setText("Record a capture before reconstruction")
+            return
+        attempt = repository.create_attempt(
+            self._capture_id,
+            "standard",
+            provider="Hunyuan3D 2.0",
+            provider_version="2.0.2",
+            parameters={"texture_stage": "disabled", "source": "windows_capture"},
+        )
+        self._generate.setText("Cancel reconstruction")
+        self._generate.setEnabled(True)
+        self._reconstruction_token = self._reconstruction_runner.start(repository, attempt.id)
+
+    def _show_reconstruction_progress(self, update: ProgressUpdate) -> None:
+        self._status.label.setText(update.label)
+
+    def _reconstruction_completed(self, attempt_id: str) -> None:
+        self._reconstruction_token = None
+        self._generate.setText("Generate Standard Shape")
+        self._status.label.setText("Model validated and ready for review")
+        self.reconstruction_ready.emit(attempt_id)
+
+    def _reconstruction_cancelled(self, _attempt_id: str) -> None:
+        self._reconstruction_token = None
+        self._generate.setText("Generate Standard Shape")
+        self._status.label.setText("Reconstruction cancelled; project remains usable")
+
+    def _reconstruction_failed(self, _attempt_id: str, detail: str) -> None:
+        self._reconstruction_token = None
+        self._generate.setText("Generate Standard Shape")
+        self._status.label.setText(f"Reconstruction failed: {detail}")
 
     def discard_capture(self) -> None:
         """Remove only the most recent unassigned capture after the user explicitly requests it."""
@@ -263,3 +333,5 @@ class CaptureWorkspace(QWidget):
         self._player.setSource(QUrl())
         self._preview.hide()
         self._metadata.setText("Capture discarded. Select & Record to capture again.")
+
+    reconstruction_ready = Signal(str)

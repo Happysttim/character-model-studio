@@ -23,6 +23,7 @@ class ApplicationContext:
     paths: ApplicationPaths
     logger: Logger
     runtime: RuntimeCapabilities | None = None
+    repository: LocalRepository | None = None
 
 
 def create_application_context() -> ApplicationContext:
@@ -37,9 +38,8 @@ def create_application_context() -> ApplicationContext:
     os.environ.setdefault("HF_HOME", str(huggingface_cache))
     logger = configure_logging(paths.logs_directory)
     initialize_database(paths.database_path)
-    recovered_attempts = LocalRepository(
-        paths.database_path, paths.projects_directory
-    ).recover_interrupted_attempts()
+    repository = LocalRepository(paths.database_path, paths.projects_directory)
+    recovered_attempts = repository.recover_interrupted_attempts()
     runtime = probe_runtime()
     logger.info("Application context initialized; recovered_attempts=%s", recovered_attempts)
-    return ApplicationContext(paths=paths, logger=logger, runtime=runtime)
+    return ApplicationContext(paths=paths, logger=logger, runtime=runtime, repository=repository)

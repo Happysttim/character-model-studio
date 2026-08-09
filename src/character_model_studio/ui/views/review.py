@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
@@ -33,6 +34,8 @@ from character_model_studio.viewer.widget import ModelViewport
 class ReviewWorkspace(QWidget):
     """Source comparison, viewer, validation placeholder, and review actions."""
 
+    regenerate_requested = Signal()
+
     def __init__(
         self,
         context: ApplicationContext,
@@ -50,6 +53,7 @@ class ReviewWorkspace(QWidget):
         self._validation_runner = ModelValidationTaskRunner()
         self._validation_runner.completed.connect(self._show_validation_report)
         self._validation_runner.failed.connect(self._show_validation_failure)
+        self._review_attempt_id: str | None = None
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -74,6 +78,34 @@ class ReviewWorkspace(QWidget):
         self._control_panel.setEnabled(True)
         self._validation_runner.start(fixture_path)
 
+    def load_attempt(self, attempt_id: str) -> None:
+        """Open a real reviewable attempt supplied by the local reconstruction workflow."""
+        repository = self._context.repository
+        if repository is None:
+            raise RuntimeError("Local repository is unavailable")
+        attempt = repository.get_attempt(attempt_id)
+        if attempt.model_relative_path is None:
+            raise ValueError("The selected attempt has no model artifact")
+        if not self._initialized:
+            self._initialized = True
+            self._viewport = ModelViewport(self._viewer_host, off_screen=self._off_screen)
+            self._viewer_layout.addWidget(self._viewport)
+            self._viewer_placeholder.hide()
+            self._control_panel.setEnabled(True)
+        if self._viewport is None:
+            raise RuntimeError("The embedded model viewport did not initialize")
+        model_path = repository.projects_root / attempt.model_relative_path
+        metadata = self._viewport.load_glb(model_path)
+        self._review_attempt_id = attempt_id
+        self._model_summary.setText(
+            f"Standard Shape GLB · {metadata.vertex_count} vertices · {metadata.face_count} faces"
+        )
+        self._validation_status.label.setText("Validation report persisted for this attempt")
+        source_path = repository.attempt_artifact_path(attempt_id, "inputs/selected-frame.png")
+        if source_path.is_file():
+            self._source_preview.setPixmap(QPixmap(str(source_path)))
+        self._validation_runner.start_attempt(repository, attempt_id)
+
     def _build_source_panel(self) -> QFrame:
         panel = GlassPanel("secondary", self)
         panel.setObjectName("sourceComparisonPanel")
@@ -82,16 +114,16 @@ class ReviewWorkspace(QWidget):
         layout.setSpacing(10)
         label = QLabel("Source reference", panel)
         label.setProperty("sectionTitle", True)
-        preview = QLabel(panel)
-        preview.setObjectName("sourceFixturePreview")
-        preview.setPixmap(source_reference_pixmap())
-        preview.setScaledContents(True)
-        preview.setMinimumHeight(180)
+        self._source_preview = QLabel(panel)
+        self._source_preview.setObjectName("sourceFixturePreview")
+        self._source_preview.setPixmap(source_reference_pixmap())
+        self._source_preview.setScaledContents(True)
+        self._source_preview.setMinimumHeight(180)
         caption = QLabel("Fixture reference only — no user capture loaded.", panel)
         caption.setWordWrap(True)
         caption.setObjectName("pageSubtitle")
         layout.addWidget(label)
-        layout.addWidget(preview)
+        layout.addWidget(self._source_preview)
         layout.addWidget(caption)
         layout.addStretch(1)
         return panel
@@ -192,18 +224,35 @@ class ReviewWorkspace(QWidget):
         self._validation_text.setObjectName("pageSubtitle")
         layout.addWidget(self._validation_text)
         layout.addStretch(1)
-        for text, button_type in (
-            ("Accept", PrimaryButton),
-            ("Reject", SecondaryButton),
-            ("Regenerate", SecondaryButton),
-        ):
+        for text, button_type in (("Accept", PrimaryButton), ("Reject", SecondaryButton)):
             button = button_type(text, panel)
             button.setEnabled(False)
             button.setToolTip(
                 "Available when a reconstruction workflow supplies a reviewable result."
             )
             layout.addWidget(button)
+            if text == "Accept":
+                self._accept = button
+                button.clicked.connect(lambda: self._decide(True))
+            else:
+                self._reject = button
+                button.clicked.connect(lambda: self._decide(False))
+        regenerate = SecondaryButton("Regenerate", panel)
+        regenerate.setEnabled(True)
+        regenerate.setToolTip("Return to Capture and run a new Standard Shape attempt.")
+        regenerate.clicked.connect(self.regenerate_requested)
+        layout.addWidget(regenerate)
         return panel
+
+    def _decide(self, accepted: bool) -> None:
+        repository = self._context.repository
+        if repository is None or self._review_attempt_id is None:
+            return
+        repository.decide(self._review_attempt_id, accepted=accepted)
+        decision = "accepted" if accepted else "rejected"
+        self._validation_status.label.setText(f"Model {decision}; the project history was updated")
+        self._accept.setEnabled(False)
+        self._reject.setEnabled(False)
 
     def _viewport_apply_camera(self, preset: CameraPreset) -> None:
         self._with_viewport(lambda viewport: viewport.apply_camera(preset))
@@ -216,6 +265,9 @@ class ReviewWorkspace(QWidget):
         self._validation_status.label.setText(f"{report.overall_status} · technical checks")
         details = [f"{check.name}: {check.detail}" for check in report.checks]
         self._validation_text.setText("\n".join(details))
+        if self._review_attempt_id is not None and report.overall_status.value != "FAIL":
+            self._accept.setEnabled(True)
+            self._reject.setEnabled(True)
 
     def _show_validation_failure(self, message: str) -> None:
         self._validation_status.label.setText("Validation failed")

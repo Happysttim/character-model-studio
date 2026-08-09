@@ -140,9 +140,12 @@ class MainWindow(QMainWindow):
             view: QWidget
             if definition.key == "review":
                 view = ReviewWorkspace(self._context, definition, self._workspace_stack)
+                self._review_workspace = view
+                view.regenerate_requested.connect(lambda: self.navigate("capture"))
             elif definition.key == "capture":
                 view = CaptureWorkspace(self._context, self._workspace_stack)
                 self._capture_workspace = view
+                view.reconstruction_ready.connect(self._open_review_attempt)
             elif definition.key == "diagnostics":
                 view = DiagnosticsWorkspace(self._context, self._workspace_stack)
                 view.reduce_motion.toggled.connect(self._set_reduce_motion)
@@ -157,6 +160,10 @@ class MainWindow(QMainWindow):
         self._toast = Toast(self._motion_preferences, workspace)
         outer_layout.addWidget(self._toast, alignment=Qt.AlignmentFlag.AlignRight)
         return workspace
+
+    def _open_review_attempt(self, attempt_id: str) -> None:
+        self._review_workspace.load_attempt(attempt_id)
+        self.navigate("review")
 
     def _set_reduce_motion(self, enabled: bool) -> None:
         self._motion_preferences.reduce_motion = enabled

@@ -4,7 +4,8 @@
 
 ## Delivered
 
-- In-process MVP orchestrator connecting capture fixture, Standard mock reconstruction, static validation, viewer conversion, review-ready state, acceptance, and restart persistence.
+- Native Capture workspace connection from recorded MP4 preview to project-local capture registration, real Standard Shape attempt, background progress/error/cancellation state, persisted validation, and review navigation.
+- Review workspace connection that opens the real generated GLB, displays the selected source frame, persists Accept/Reject decisions, and returns Regenerate to Capture without a server boundary.
 - Startup recovery that marks interrupted active attempts as failed while preserving their artifacts and leaving non-active attempts untouched.
 - Project-history query for reopening local project metadata.
 - Diagnostics actions for copying the local runtime report and opening the local log folder.
@@ -14,25 +15,34 @@
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\cms.ps1 test-integration
+powershell -ExecutionPolicy Bypass -File .\scripts\cms.ps1 test-reconstruction
 powershell -ExecutionPolicy Bypass -File .\scripts\cms.ps1 verify
 ```
 
-The integration test passed the complete local Mock Standard path:
+The automated integration test continues to cover the local Mock Standard contract:
 
 ```text
 project -> fixture capture -> reconstruction attempt -> mock GLB/texture
 -> static validation -> viewer conversion -> accept -> restart -> persisted acceptance
 ```
 
-It also verifies interrupted-attempt recovery and project history reopening. Full verification passed formatting, linting, strict type checks, and twenty-eight tests.
+It also verifies interrupted-attempt recovery and project history reopening. The real offline Standard workflow smoke
+separately proves local MP4 preprocessing, CUDA Shape generation, persisted validation, viewer conversion, and
+review-ready publication using the downloaded local checkpoint. Full verification passed formatting, linting, strict
+type checks, and twenty-eight tests.
 
 ## Provider Warning
 
-The real Hunyuan3D 2.0 path remains blocked because weights are not present in the configured local cache. The integration path does not misrepresent the Mock result as a CUDA reconstruction success. High Quality remains explicitly disabled by its independent readiness gate.
+Hunyuan3D 2.0 Standard Shape is available through the local cache-only provider path. Texture is intentionally not
+loaded because the current capability policy does not qualify the Standard textured pipeline. High Quality remains
+explicitly disabled by its independent readiness gate.
 
 ## Manual Follow-up
 
-The integrated screens require a visual acceptance pass after real model weights are available: capture preview, real processing progress, real provider error state, generated-model source comparison, and review actions must be exercised in the native desktop UI. This does not block local Mock workflow correctness but prevents claiming a fully real Reconstruction MVP.
+The integrated screens still require a manual Windows visual acceptance pass using an actual on-screen character:
+capture preview, real processing progress, cancellation/error wording, generated-model source comparison, and review
+actions. The automated real smoke uses a generated local capture fixture, so it does not measure visual fidelity to a
+user's character.
 
 ## Privacy
 
