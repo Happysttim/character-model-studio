@@ -197,6 +197,7 @@ Baseline character-isolation policy:
 Default/optional provider policy:
 
 - Standard reconstruction: Hunyuan3D 2.0.
+- Experimental textured reconstruction: Stable Fast 3D, only as an explicit user selection after local CUDA/cache/native-extension readiness passes; it never replaces the Standard default.
 - High-quality reconstruction: Hunyuan3D 2.1.
 - Default auto-rigging reference: SkinTokens / TokenRig.
 - Alternate rigging provider candidate: UniRig.

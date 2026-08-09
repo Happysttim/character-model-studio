@@ -93,6 +93,10 @@ Standard mode should prioritize broad consumer-GPU compatibility and predictable
 
 Do not disable Standard Shape merely because the GPU cannot run Standard Texture.
 
+## Experimental textured mode — Stable Fast 3D
+
+Stable Fast 3D is an explicit opt-in alternative that generates Shape and texture together from one isolated RGBA input. It must resolve its SF3D, DINOv2, and CLIP weights from local caches only, run on CUDA, and persist a textured GLB plus the normal validation report. It does not replace Hunyuan3D 2.0 Standard mode.
+
 ## High Quality mode — Hunyuan3D 2.1
 
 This is an **optional user-selected mode**.

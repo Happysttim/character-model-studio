@@ -15,6 +15,7 @@ def main() -> int:
             {
                 "standard": _readiness_dict(runtime.standard),
                 "segmentation": _readiness_dict(runtime.segmentation),
+                "sf3d": _readiness_dict(runtime.sf3d),
                 "high_quality": _readiness_dict(runtime.high_quality),
                 "rigging": _readiness_dict(runtime.rigging),
             },

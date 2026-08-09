@@ -51,4 +51,6 @@ The integration test uses generated fixtures under a temporary local project roo
 
 ## Phase Decision
 
+Stable Fast 3D is now available as an explicit experimental textured attempt when its local cache, CUDA, and native extensions are ready. The attempt persists its provider identity, texture stage, validation report, and project-relative GLB path; Hunyuan3D 2.0 remains the Standard default.
+
 The local MVP integration contract is complete with the documented real-provider and manual-visual warnings. Do not begin Phase 10 or a later phase until explicitly requested.

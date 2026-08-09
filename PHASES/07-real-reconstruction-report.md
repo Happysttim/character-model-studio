@@ -53,6 +53,8 @@ scheduler, and image processor. The selected fp16 safetensors Shape checkpoint c
 for Shape-only initialization. No separate repository-level config, VAE directory, image processor directory, or
 Texture model is required for this tested Shape path.
 
+Follow-up: Stable Fast 3D was verified as an opt-in local textured alternative using cached SF3D, DINOv2, and CLIP weights. A real capture completed CUDA generation and persisted a technically reviewable textured GLB; Hunyuan3D 2.0 remains the Standard default.
+
 The Hugging Face cache client considers a Shape-only snapshot incomplete because unrelated repository files are absent.
 The application therefore resolves the local cache index and then validates the exact Shape config and checkpoint it
 uses. This avoids a full repository download while preserving an offline-only inference path.

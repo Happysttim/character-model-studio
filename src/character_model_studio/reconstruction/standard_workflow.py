@@ -18,6 +18,7 @@ from character_model_studio.reconstruction.providers.hunyuan2 import Hunyuan3D20
 from character_model_studio.reconstruction.providers.rembg_segmentation import (
     RembgAnimeSegmentationProvider,
 )
+from character_model_studio.reconstruction.providers.sf3d import StableFast3DProvider
 from character_model_studio.storage.repositories import LocalRepository
 from character_model_studio.validation.model import ModelValidator, ValidationStatus
 
@@ -33,14 +34,12 @@ class StandardShapeWorkflow:
         progress: Callable[[ProgressUpdate], None],
     ) -> Path:
         """Publish an untextured Standard GLB or leave the attempt in a truthful terminal state."""
-        provider = Hunyuan3D20Provider()
         segmentation = RembgAnimeSegmentationProvider()
         started = time.perf_counter()
         runtime = probe_runtime()
         try:
             attempt = repository.get_attempt(attempt_id)
-            if attempt.quality_mode != "standard":
-                raise ValueError("The real Shape workflow supports Standard Hunyuan3D 2.0 only")
+            provider = _provider_for_attempt(attempt.provider)
             repository.transition_attempt(attempt_id, AttemptStatus.PREPROCESSING)
             progress(
                 ProgressUpdate("preprocess", "Selecting a representative capture frame", 10, True)
@@ -72,14 +71,23 @@ class StandardShapeWorkflow:
             torch.cuda.reset_peak_memory_stats(device)
             before_load = _gpu_memory(device)
             repository.transition_attempt(attempt_id, AttemptStatus.RECONSTRUCTING)
-            progress(ProgressUpdate("load", "Loading Hunyuan3D 2.0 Shape on CUDA", None, True))
+            progress(ProgressUpdate("load", f"Loading {provider.name} on CUDA", None, True))
             load_started = time.perf_counter()
             provider.load()
             after_load = _gpu_memory(device)
-            progress(ProgressUpdate("shape", "Generating untextured 3D shape", None, True))
+            progress(
+                ProgressUpdate(
+                    "shape",
+                    "Generating textured 3D asset"
+                    if provider.name == StableFast3DProvider.name
+                    else "Generating untextured 3D shape",
+                    None,
+                    True,
+                )
+            )
             output_path = repository.attempt_artifact_path(attempt_id, "model.glb")
             provider.generate_shape(
-                [isolated_input_path], output_path, token, _shape_progress(progress)
+                [isolated_input_path], output_path, token, _shape_progress(progress, provider.name)
             )
             torch.cuda.synchronize(device)
 
@@ -92,10 +100,11 @@ class StandardShapeWorkflow:
             validation = ModelValidator().validate(output_path)
             repository.persist_validation_report(attempt_id, validation)
             if validation.overall_status is ValidationStatus.FAIL:
-                raise RuntimeError("Generated Shape GLB failed technical validation")
+                detail = "; ".join(validation.failures) or "unknown validation failure"
+                raise RuntimeError(f"Generated GLB failed technical validation: {detail}")
             metrics: dict[str, object] = {
                 "operation": "shape_reconstruction",
-                "quality_mode": "standard",
+                "quality_mode": attempt.quality_mode,
                 "provider": provider.name,
                 "provider_version": provider.version,
                 "cuda_available": runtime.gpu.cuda_available,
@@ -124,7 +133,9 @@ class StandardShapeWorkflow:
                 "vertex_count": validation.metrics["vertex_count"],
                 "face_count": validation.metrics["face_count"],
                 "validation_status": validation.overall_status.value,
-                "texture_stage": "not_requested",
+                "texture_stage": "generated"
+                if provider.name == StableFast3DProvider.name
+                else "not_requested",
             }
             repository.persist_attempt_metrics(attempt_id, metrics)
             repository.write_attempt_metadata(attempt_id, metrics)
@@ -139,10 +150,11 @@ class StandardShapeWorkflow:
             current = repository.get_attempt(attempt_id)
             if current.status not in {AttemptStatus.FAILED, AttemptStatus.CANCELLED}:
                 repository.transition_attempt(attempt_id, AttemptStatus.FAILED)
-            raise RuntimeError(f"Standard Hunyuan3D 2.0 Shape failed: {error}") from error
+            raise RuntimeError(f"Local reconstruction failed: {error}") from error
         finally:
             segmentation.unload()
-            provider.unload()
+            if "provider" in locals():
+                provider.unload()
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
@@ -158,8 +170,16 @@ def _gpu_memory(device: torch.device) -> dict[str, int]:
     }
 
 
+def _provider_for_attempt(provider_name: str) -> Hunyuan3D20Provider | StableFast3DProvider:
+    if provider_name == StableFast3DProvider.name:
+        return StableFast3DProvider()
+    if provider_name == Hunyuan3D20Provider.name:
+        return Hunyuan3D20Provider()
+    raise ValueError(f"Unsupported reconstruction provider: {provider_name}")
+
+
 def _shape_progress(
-    publish: Callable[[ProgressUpdate], None],
+    publish: Callable[[ProgressUpdate], None], provider_name: str
 ) -> Callable[[str, int, int], None]:
     """Translate actual Hunyuan iteration totals into bounded workflow progress."""
 
@@ -169,6 +189,11 @@ def _shape_progress(
     }
 
     def report(stage: str, completed: int, total: int) -> None:
+        if provider_name == StableFast3DProvider.name:
+            label = "SF3D geometry" if stage == "sf3d_geometry" else "SF3D texture baking"
+            percent = 45 + round(40 * completed / max(total, 1))
+            publish(ProgressUpdate(stage, f"{label} {completed}/{total}", percent, True))
+            return
         start, end, label = ranges[stage]
         percent = start + round((end - start) * completed / max(total, 1))
         publish(ProgressUpdate(stage, f"{label} {completed}/{total}", percent, True))

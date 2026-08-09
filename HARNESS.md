@@ -51,6 +51,7 @@ test-ai-mock
 test-provider-compatibility
 test-gpu
 test-segmentation
+test-sf3d
 test-reconstruction
 test-rigging
 test-animation

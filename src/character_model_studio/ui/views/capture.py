@@ -170,18 +170,24 @@ class CaptureWorkspace(QWidget):
         guidance = QLabel("Drag once to lock a region. Alt + / starts and stops recording.")
         guidance.setWordWrap(True)
         panel_layout.addWidget(guidance)
-        standard = QRadioButton("Standard — Hunyuan3D 2.0 (Default)", panel)
-        standard.setChecked(True)
+        self._standard = QRadioButton("Standard — Hunyuan3D 2.0 (Default)", panel)
+        self._standard.setChecked(True)
+        self._sf3d = QRadioButton("Textured Experimental — Stable Fast 3D", panel)
         high_quality = QRadioButton("High Quality — Hunyuan3D 2.1 (Optional)", panel)
         runtime = context.runtime
         if runtime is not None:
-            standard.setToolTip(
+            self._standard.setToolTip(
                 f"Shape: {runtime.standard.reason}\n"
                 f"Background isolation: {runtime.segmentation.reason}"
             )
             high_quality.setEnabled(runtime.high_quality.status.value == "READY")
             high_quality.setToolTip(runtime.high_quality.reason)
-        panel_layout.addWidget(standard)
+            self._sf3d.setEnabled(runtime.sf3d.status.value == "READY")
+            self._sf3d.setToolTip(runtime.sf3d.reason)
+        self._standard.toggled.connect(self._select_standard_provider)
+        self._sf3d.toggled.connect(self._select_sf3d_provider)
+        panel_layout.addWidget(self._standard)
+        panel_layout.addWidget(self._sf3d)
         panel_layout.addWidget(high_quality)
         self._action = PrimaryButton("Select capture region", panel)
         self._action.clicked.connect(self._handle_capture_action)
@@ -229,6 +235,7 @@ class CaptureWorkspace(QWidget):
         self._reconstruction_runner.cancelled.connect(self._reconstruction_cancelled)
         self._reconstruction_runner.failed.connect(self._reconstruction_failed)
         self._reconstruction_token: CancellationToken | None = None
+        self._selected_provider = "Hunyuan3D 2.0"
 
     @property
     def is_recording(self) -> bool:
@@ -322,12 +329,10 @@ class CaptureWorkspace(QWidget):
         self._preview.hide()
         self._play_preview.show()
         self._discard.show()
-        standard_ready = self._standard_workflow_is_ready()
-        self._generate.setEnabled(standard_ready)
+        workflow_ready = self._workflow_is_ready()
+        self._generate.setEnabled(workflow_ready)
         self._generate.setToolTip(
-            "Remove the background locally on CUDA, then run Hunyuan3D 2.0 Shape"
-            if standard_ready
-            else self._standard_workflow_unavailable_reason()
+            self._workflow_description() if workflow_ready else self._workflow_unavailable_reason()
         )
         self._generate.show()
 
@@ -347,8 +352,8 @@ class CaptureWorkspace(QWidget):
             self._reconstruction_token.cancel()
             self._status.label.setText("Cancellation requested; releasing the local CUDA provider")
             return
-        if not self._standard_workflow_is_ready():
-            self._status.label.setText(self._standard_workflow_unavailable_reason())
+        if not self._workflow_is_ready():
+            self._status.label.setText(self._workflow_unavailable_reason())
             return
         repository = self._context.repository
         if repository is None or self._capture_id is None:
@@ -356,10 +361,19 @@ class CaptureWorkspace(QWidget):
             return
         attempt = repository.create_attempt(
             self._capture_id,
-            "standard",
-            provider="Hunyuan3D 2.0",
-            provider_version="2.0.2",
-            parameters={"texture_stage": "disabled", "source": "windows_capture"},
+            "experimental_textured" if self._selected_provider == "Stable Fast 3D" else "standard",
+            provider=self._selected_provider,
+            provider_version=(
+                "upstream-local-experimental"
+                if self._selected_provider == "Stable Fast 3D"
+                else "2.0.2"
+            ),
+            parameters={
+                "texture_stage": "generated"
+                if self._selected_provider == "Stable Fast 3D"
+                else "disabled",
+                "source": "windows_capture",
+            },
         )
         self._generate.setText("Cancel reconstruction")
         self._generate.setEnabled(True)
@@ -372,20 +386,20 @@ class CaptureWorkspace(QWidget):
 
     def _reconstruction_completed(self, attempt_id: str) -> None:
         self._reconstruction_token = None
-        self._generate.setText("Generate Standard Shape")
+        self._restore_generate_label()
         self._status.label.setText("Model validated and ready for review")
         self.reconstruction_finished.emit("Model validated and ready for review", True)
         self.reconstruction_ready.emit(attempt_id)
 
     def _reconstruction_cancelled(self, _attempt_id: str) -> None:
         self._reconstruction_token = None
-        self._generate.setText("Generate Standard Shape")
+        self._restore_generate_label()
         self._status.label.setText("Reconstruction cancelled; project remains usable")
         self.reconstruction_finished.emit("Reconstruction cancelled; project remains usable", False)
 
     def _reconstruction_failed(self, _attempt_id: str, detail: str) -> None:
         self._reconstruction_token = None
-        self._generate.setText("Generate Standard Shape")
+        self._restore_generate_label()
         self._status.label.setText(f"Reconstruction failed: {detail}")
         self.reconstruction_finished.emit(f"Reconstruction failed: {detail}", False)
 
@@ -404,6 +418,56 @@ class CaptureWorkspace(QWidget):
         if runtime.standard.status.value != "READY":
             return f"Standard Shape is unavailable: {runtime.standard.reason}"
         return f"Background isolation is unavailable: {runtime.segmentation.reason}"
+
+    def _workflow_is_ready(self) -> bool:
+        runtime = self._context.runtime
+        if runtime is None or runtime.segmentation.status.value != "READY":
+            return False
+        return (
+            runtime.sf3d.status.value == "READY"
+            if self._selected_provider == "Stable Fast 3D"
+            else runtime.standard.status.value == "READY"
+        )
+
+    def _workflow_unavailable_reason(self) -> str:
+        runtime = self._context.runtime
+        if runtime is None:
+            return "Runtime readiness is unavailable"
+        provider = runtime.sf3d if self._selected_provider == "Stable Fast 3D" else runtime.standard
+        if provider.status.value != "READY":
+            return f"{provider.provider} is unavailable: {provider.reason}"
+        return f"Background isolation is unavailable: {runtime.segmentation.reason}"
+
+    def _workflow_description(self) -> str:
+        return (
+            "Remove the background on CUDA, then generate a textured SF3D GLB locally"
+            if self._selected_provider == "Stable Fast 3D"
+            else "Remove the background locally on CUDA, then run Hunyuan3D 2.0 Shape"
+        )
+
+    def _select_standard_provider(self, checked: bool) -> None:
+        if checked:
+            self._selected_provider = "Hunyuan3D 2.0"
+            self._restore_generate_label()
+
+    def _select_sf3d_provider(self, checked: bool) -> None:
+        if checked:
+            self._selected_provider = "Stable Fast 3D"
+            self._restore_generate_label()
+
+    def _restore_generate_label(self) -> None:
+        self._generate.setText(
+            "Generate Textured Model"
+            if self._selected_provider == "Stable Fast 3D"
+            else "Generate Standard Shape"
+        )
+        if self._last_result is not None:
+            self._generate.setEnabled(self._workflow_is_ready())
+            self._generate.setToolTip(
+                self._workflow_description()
+                if self._workflow_is_ready()
+                else self._workflow_unavailable_reason()
+            )
 
     def discard_capture(self) -> None:
         """Remove only the most recent unassigned capture after the user explicitly requests it."""

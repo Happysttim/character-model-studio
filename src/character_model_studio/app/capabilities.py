@@ -14,6 +14,7 @@ class Capability(StrEnum):
     CHARACTER_SEGMENTATION = "CHARACTER_SEGMENTATION"
     STANDARD_SHAPE = "STANDARD_SHAPE"
     STANDARD_TEXTURED_PIPELINE = "STANDARD_TEXTURED_PIPELINE"
+    EXPERIMENTAL_SF3D_TEXTURED_PIPELINE = "EXPERIMENTAL_SF3D_TEXTURED_PIPELINE"
     HIGH_QUALITY_SHAPE = "HIGH_QUALITY_SHAPE"
     HIGH_QUALITY_TEXTURE = "HIGH_QUALITY_TEXTURE"
     HIGH_QUALITY_COMBINED_PIPELINE = "HIGH_QUALITY_COMBINED_PIPELINE"
@@ -71,6 +72,7 @@ class RuntimeCapabilities:
     capabilities: frozenset[Capability]
     standard: ProviderReadiness
     segmentation: ProviderReadiness
+    sf3d: ProviderReadiness
     high_quality: ProviderReadiness
     rigging: ProviderReadiness
 
@@ -122,14 +124,20 @@ def probe_runtime() -> RuntimeCapabilities:
     capability_set = _capabilities(gpu.cuda_available, tier)
     standard = _standard_provider_readiness(capability_set)
     segmentation = _segmentation_provider_readiness(capability_set)
+    sf3d = _sf3d_provider_readiness(gpu, capability_set)
     if segmentation.status is ReadinessStatus.READY:
         capability_set = frozenset({*capability_set, Capability.CHARACTER_SEGMENTATION})
+    if sf3d.status is ReadinessStatus.READY:
+        capability_set = frozenset(
+            {*capability_set, Capability.EXPERIMENTAL_SF3D_TEXTURED_PIPELINE}
+        )
     return RuntimeCapabilities(
         gpu,
         tier,
         capability_set,
         standard,
         segmentation,
+        sf3d,
         _provider_readiness(
             "Hunyuan3D 2.1", "hunyuan3d_2_1", Capability.HIGH_QUALITY_SHAPE, capability_set
         ),
@@ -308,4 +316,68 @@ def _segmentation_provider_readiness(
         "Local isnet-anime model and ONNX Runtime CUDA provider are ready",
         True,
         True,
+    )
+
+
+def _sf3d_provider_readiness(
+    gpu: GpuSnapshot, capabilities: frozenset[Capability]
+) -> ProviderReadiness:
+    """Check the explicit local SF3D cache and compiled extensions without loading weights."""
+    name = "Stable Fast 3D (Experimental)"
+    if Capability.CUDA not in capabilities:
+        return ProviderReadiness(
+            name, ReadinessStatus.CUDA_UNAVAILABLE, "CUDA is unavailable", False, False
+        )
+    minimum = 6 * GIB
+    eligible = gpu.total_vram_bytes is not None and gpu.total_vram_bytes >= minimum
+    if not eligible:
+        return ProviderReadiness(
+            name,
+            ReadinessStatus.VRAM_INELIGIBLE,
+            "Total physical VRAM is below the validated SF3D lane",
+            False,
+            False,
+        )
+    paths = _sf3d_paths()
+    required = (
+        paths[0] / "config.yaml",
+        paths[0] / "model.safetensors",
+        paths[1] / "config.json",
+        paths[1] / "model.safetensors",
+        paths[2] / "sf3d" / "system.py",
+    )
+    extensions = all(
+        importlib.util.find_spec(module) is not None
+        for module in ("texture_baker", "uv_unwrapper", "open_clip", "jaxtyping")
+    )
+    missing = [path.name for path in required if not path.is_file()]
+    if missing or not extensions:
+        detail = (
+            "missing local artifacts: " + ", ".join(missing)
+            if missing
+            else "SF3D native runtime extensions are not installed"
+        )
+        return ProviderReadiness(name, ReadinessStatus.NOT_INSTALLED, detail, False, True)
+    return ProviderReadiness(
+        name,
+        ReadinessStatus.READY,
+        "Local SF3D, DINO, CLIP cache and native extensions are ready",
+        True,
+        True,
+    )
+
+
+def _sf3d_paths() -> tuple[Path, Path, Path]:
+    from character_model_studio.platform.windows.paths import resolve_application_paths
+
+    cache = resolve_application_paths().cache_directory / "sf3d"
+    root = Path(__file__).resolve().parents[3]
+    return (
+        Path(os.environ.get("CHARACTER_MODEL_STUDIO_SF3D_MODEL_DIR", cache / "stable-fast-3d")),
+        Path(os.environ.get("CHARACTER_MODEL_STUDIO_SF3D_DINO_DIR", cache / "dinov2-large")),
+        Path(
+            os.environ.get(
+                "CHARACTER_MODEL_STUDIO_SF3D_SOURCE_DIR", root / "external" / "StableFast3D"
+            )
+        ),
     )

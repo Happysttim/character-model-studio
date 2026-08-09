@@ -112,7 +112,7 @@ class LocalRepository:
         provider_version: str | None = None,
         parameters: dict[str, object] | None = None,
     ) -> ModelAttempt:
-        if quality_mode not in {"standard", "high_quality"}:
+        if quality_mode not in {"standard", "high_quality", "experimental_textured"}:
             raise ValueError(f"Unsupported mock quality mode: {quality_mode}")
         provider = provider or (
             "mock-hunyuan3d-2" if quality_mode == "standard" else "mock-hunyuan3d-2.1"
