@@ -1,0 +1,1 @@
+"""Local rigging provider implementations."""

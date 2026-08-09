@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-INITIAL_SCHEMA_VERSION = 1
+INITIAL_SCHEMA_VERSION = 3
 
 
 def initialize_database(database_path: Path) -> None:
@@ -21,7 +21,66 @@ def initialize_database(database_path: Path) -> None:
             )
             """
         )
+        connection.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS projects (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS captures (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL REFERENCES projects(id),
+                relative_path TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS model_attempts (
+                id TEXT PRIMARY KEY,
+                capture_id TEXT NOT NULL REFERENCES captures(id),
+                sequence_number INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                quality_mode TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                model_relative_path TEXT,
+                texture_relative_path TEXT,
+                created_at TEXT NOT NULL,
+                finished_at TEXT
+            );
+            CREATE TABLE IF NOT EXISTS model_reviews (
+                attempt_id TEXT PRIMARY KEY REFERENCES model_attempts(id),
+                decision TEXT NOT NULL,
+                reason TEXT,
+                reviewed_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS rig_attempts (
+                id TEXT PRIMARY KEY,
+                model_attempt_id TEXT NOT NULL REFERENCES model_attempts(id),
+                status TEXT NOT NULL,
+                rigged_relative_path TEXT
+            );
+            CREATE TABLE IF NOT EXISTS pose_documents (
+                id TEXT PRIMARY KEY,
+                rig_attempt_id TEXT NOT NULL REFERENCES rig_attempts(id),
+                name TEXT NOT NULL,
+                payload_json TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS animation_clips (
+                id TEXT PRIMARY KEY,
+                rig_attempt_id TEXT NOT NULL REFERENCES rig_attempts(id),
+                name TEXT NOT NULL,
+                payload_json TEXT NOT NULL
+            );
+            """
+        )
+        attempt_columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(model_attempts)").fetchall()
+        }
+        if "texture_relative_path" not in attempt_columns:
+            connection.execute("ALTER TABLE model_attempts ADD COLUMN texture_relative_path TEXT")
         connection.execute(
             "INSERT OR IGNORE INTO schema_metadata (singleton, schema_version) VALUES (1, ?)",
+            (INITIAL_SCHEMA_VERSION,),
+        )
+        connection.execute(
+            "UPDATE schema_metadata SET schema_version = ? WHERE singleton = 1",
             (INITIAL_SCHEMA_VERSION,),
         )
