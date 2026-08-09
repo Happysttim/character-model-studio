@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QLabel, QPlainTextEdit, QProgressBar, QVBoxLayout, QWidget
 
 from character_model_studio.domain.models import ProgressUpdate
@@ -20,8 +21,13 @@ class ProcessingWorkspace(QWidget):
         self._status = QLabel("No active reconstruction task.", panel)
         self._progress = QProgressBar(panel)
         self._log = QPlainTextEdit(panel)
+        self._log.setObjectName("processingLog")
         self._log.setReadOnly(True)
         self._log.setMaximumBlockCount(200)
+        log_font = QFont()
+        log_font.setFamilies(["Noto Sans KR", "Noto Sans", "Segoe UI", "Malgun Gothic"])
+        log_font.setPointSize(10)
+        self._log.setFont(log_font)
         panel_layout.addWidget(self._status)
         panel_layout.addWidget(self._progress)
         panel_layout.addWidget(self._log, stretch=1)

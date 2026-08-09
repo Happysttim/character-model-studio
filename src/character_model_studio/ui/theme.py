@@ -139,6 +139,32 @@ def application_stylesheet(tokens: ThemeTokens = TOKENS) -> str:
             padding: 0 9px;
             selection-background-color: {tokens.terracotta};
         }}
+        QPlainTextEdit#processingLog {{
+            background-color: rgba(255, 250, 244, 0.82);
+            border: 1px solid {tokens.border_soft};
+            border-radius: 10px;
+            color: #2A1710;
+            font-family: "Noto Sans KR", "Noto Sans", "Segoe UI", "Malgun Gothic", sans-serif;
+            font-size: 13px;
+            padding: 10px;
+            selection-background-color: {tokens.apricot};
+        }}
+        QProgressBar {{
+            background-color: rgba(255, 250, 244, 0.70);
+            border: 1px solid {tokens.border_soft};
+            border-radius: 6px;
+            color: #2A1710;
+            min-height: 12px;
+            text-align: center;
+        }}
+        QProgressBar::chunk {{
+            background-color: {tokens.amber};
+            border-radius: 5px;
+        }}
+        QLabel#capturePoster {{
+            background-color: rgba(42, 33, 30, 0.18);
+            border: 1px solid {tokens.border_soft};
+        }}
         QCheckBox {{ color: {tokens.text_secondary}; spacing: 8px; }}
         QCheckBox::indicator {{
             width: 16px; height: 16px; border-radius: 4px;

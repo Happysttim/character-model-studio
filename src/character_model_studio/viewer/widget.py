@@ -47,12 +47,18 @@ class ModelViewport(QWidget):
         """Load a GLB after independent trimesh parsing succeeds."""
         loaded_model = load_glb_model(path)
         self._plotter.clear()
-        self._model_actor = self._plotter.add_mesh(
-            loaded_model.mesh,
-            color="#FFBE88",
-            smooth_shading=True,
-            name="review-model",
-        )
+        mesh_options: dict[str, Any] = {
+            "smooth_shading": True,
+            "name": "review-model",
+        }
+        if loaded_model.vertex_colors is None:
+            # A Shape-only GLB has no texture/color payload. Keep it neutral so
+            # the UI does not imply that a texture was generated.
+            mesh_options["color"] = "#B8AAA1"
+        else:
+            mesh_options["scalars"] = "vertex_rgba"
+            mesh_options["rgb"] = True
+        self._model_actor = self._plotter.add_mesh(loaded_model.mesh, **mesh_options)
         self._loaded_model = loaded_model
         self._grid_actor = None
         self._bounds_actor = None

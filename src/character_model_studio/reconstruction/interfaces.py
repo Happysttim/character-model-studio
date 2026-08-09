@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from pathlib import Path
 
 from character_model_studio.app.capabilities import ProviderReadiness
@@ -31,6 +32,10 @@ class ReconstructionProvider(ABC):
 
     @abstractmethod
     def generate_shape(
-        self, inputs: list[Path], output_path: Path, cancellation: CancellationToken
+        self,
+        inputs: list[Path],
+        output_path: Path,
+        cancellation: CancellationToken,
+        progress: Callable[[str, int, int], None] | None = None,
     ) -> Path:
         """Generate a model artifact and return its project-relative path."""

@@ -97,8 +97,10 @@ class ReviewWorkspace(QWidget):
         model_path = repository.projects_root / attempt.model_relative_path
         metadata = self._viewport.load_glb(model_path)
         self._review_attempt_id = attempt_id
+        appearance = "vertex colors" if metadata.vertex_colors is not None else "untextured Shape"
         self._model_summary.setText(
-            f"Standard Shape GLB · {metadata.vertex_count} vertices · {metadata.face_count} faces"
+            f"Standard Shape GLB · {metadata.vertex_count} vertices · "
+            f"{metadata.face_count} faces · {appearance}"
         )
         self._validation_status.label.setText("Validation report persisted for this attempt")
         source_path = repository.attempt_artifact_path(attempt_id, "inputs/selected-frame.png")

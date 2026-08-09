@@ -19,6 +19,7 @@ class LoadedModel:
     mesh: pv.PolyData
     vertex_count: int
     face_count: int
+    vertex_colors: np.ndarray | None
 
 
 def load_glb_model(path: Path) -> LoadedModel:
@@ -43,9 +44,17 @@ def load_glb_model(path: Path) -> LoadedModel:
         (np.full(len(mesh.faces), 3, dtype=np.int64), mesh.faces.astype(np.int64, copy=False))
     ).ravel()
     poly_data = pv.PolyData(mesh.vertices.astype(float, copy=False), faces)
+    vertex_colors: np.ndarray | None = None
+    if mesh.visual.kind == "vertex":
+        vertex_colors = np.asarray(mesh.visual.vertex_colors, dtype=np.uint8)
+        if vertex_colors.shape == (len(mesh.vertices), 4):
+            poly_data["vertex_rgba"] = vertex_colors
+        else:
+            vertex_colors = None
     return LoadedModel(
         source_path=path,
         mesh=poly_data,
         vertex_count=len(mesh.vertices),
         face_count=len(mesh.faces),
+        vertex_colors=vertex_colors,
     )

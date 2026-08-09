@@ -61,7 +61,7 @@ class StandardShapeWorkflow:
             after_load = _gpu_memory(device)
             progress(ProgressUpdate("shape", "Generating untextured 3D shape", None, True))
             output_path = repository.attempt_artifact_path(attempt_id, "model.glb")
-            provider.generate_shape([input_path], output_path, token)
+            provider.generate_shape([input_path], output_path, token, _shape_progress(progress))
             torch.cuda.synchronize(device)
 
             repository.transition_attempt(
@@ -129,3 +129,21 @@ def _gpu_memory(device: torch.device) -> dict[str, int]:
         "allocated_bytes": torch.cuda.memory_allocated(device),
         "reserved_bytes": torch.cuda.memory_reserved(device),
     }
+
+
+def _shape_progress(
+    publish: Callable[[ProgressUpdate], None],
+) -> Callable[[str, int, int], None]:
+    """Translate actual Hunyuan iteration totals into bounded workflow progress."""
+
+    ranges = {
+        "diffusion": (15, 65, "Diffusion Sampling"),
+        "volume": (65, 88, "Volume Decoding"),
+    }
+
+    def report(stage: str, completed: int, total: int) -> None:
+        start, end, label = ranges[stage]
+        percent = start + round((end - start) * completed / max(total, 1))
+        publish(ProgressUpdate(stage, f"{label} {completed}/{total}", percent, True))
+
+    return report

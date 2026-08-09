@@ -6,7 +6,7 @@ import uuid
 from shutil import rmtree
 
 from PySide6.QtCore import QPoint, QRect, Qt, QTimer, QUrl, Signal
-from PySide6.QtGui import QColor, QKeyEvent, QMouseEvent, QPainter, QPen, QScreen
+from PySide6.QtGui import QColor, QKeyEvent, QMouseEvent, QPainter, QPen, QPixmap, QScreen
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import QLabel, QRadioButton, QVBoxLayout, QWidget
@@ -187,12 +187,23 @@ class CaptureWorkspace(QWidget):
         panel_layout.addWidget(self._status, alignment=Qt.AlignmentFlag.AlignLeft)
         self._metadata = QLabel("No capture recorded.", panel)
         panel_layout.addWidget(self._metadata)
+        self._poster = QLabel(panel)
+        self._poster.setObjectName("capturePoster")
+        self._poster.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._poster.setScaledContents(True)
+        self._poster.setMinimumHeight(180)
+        self._poster.hide()
         self._preview = QVideoWidget(panel)
         self._preview.setMinimumHeight(180)
         self._preview.hide()
         self._player = QMediaPlayer(self)
         self._player.setVideoOutput(self._preview)
+        self._play_preview = SecondaryButton("Play capture preview", panel)
+        self._play_preview.clicked.connect(self._show_video_preview)
+        self._play_preview.hide()
+        panel_layout.addWidget(self._poster)
         panel_layout.addWidget(self._preview)
+        panel_layout.addWidget(self._play_preview, alignment=Qt.AlignmentFlag.AlignLeft)
         self._discard = SecondaryButton("Discard capture", panel)
         self._discard.clicked.connect(self.discard_capture)
         self._discard.hide()
@@ -299,7 +310,14 @@ class CaptureWorkspace(QWidget):
         project = repository.create_project("Captured character project")
         self._capture_id = repository.register_capture_file(project.id, result.video_path).id
         self._player.setSource(QUrl.fromLocalFile(str(result.video_path)))
-        self._preview.show()
+        poster = QPixmap(str(result.thumbnail_path))
+        if poster.isNull():
+            self._capture_failed("The saved capture thumbnail could not be opened")
+            return
+        self._poster.setPixmap(poster)
+        self._poster.show()
+        self._preview.hide()
+        self._play_preview.show()
         self._discard.show()
         standard_ready = (
             self._context.runtime is not None
@@ -317,6 +335,12 @@ class CaptureWorkspace(QWidget):
         self._indicator.stop()
         self._status.label.setText("Capture unavailable")
         self._metadata.setText(f"Capture failed: {message}. Existing project data was preserved.")
+
+    def _show_video_preview(self) -> None:
+        """Start actual playback only after the visible thumbnail has been shown."""
+        self._poster.hide()
+        self._preview.show()
+        self._player.play()
 
     def _start_reconstruction(self) -> None:
         if self._reconstruction_token is not None:
@@ -382,6 +406,8 @@ class CaptureWorkspace(QWidget):
             return
         self._last_result = None
         self._discard.hide()
+        self._play_preview.hide()
+        self._poster.hide()
         self._preview.hide()
         self._metadata.setText("Capture discarded. Select & Record to capture again.")
 

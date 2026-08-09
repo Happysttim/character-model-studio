@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,9 @@ from character_model_studio.reconstruction.interfaces import ReconstructionProvi
 from character_model_studio.reconstruction.model_paths import (
     ShapeModelSnapshot,
     resolve_hunyuan3d_2_shape_snapshot,
+)
+from character_model_studio.reconstruction.providers.hunyuan_progress import (
+    observe_hunyuan_shape_progress,
 )
 
 
@@ -65,7 +69,11 @@ class Hunyuan3D20Provider(ReconstructionProvider):
             torch.cuda.empty_cache()
 
     def generate_shape(
-        self, inputs: list[Path], output_path: Path, cancellation: CancellationToken
+        self,
+        inputs: list[Path],
+        output_path: Path,
+        cancellation: CancellationToken,
+        progress: Callable[[str, int, int], None] | None = None,
     ) -> Path:
         """Generate and export one canonical GLB using a selected representative frame."""
         if self._pipeline is None:
@@ -77,7 +85,11 @@ class Hunyuan3D20Provider(ReconstructionProvider):
         from PIL import Image
 
         image = Image.open(inputs[0]).convert("RGBA")
-        mesh = self._pipeline(image=image)[0]
+        if progress is None:
+            mesh = self._pipeline(image=image)[0]
+        else:
+            with observe_hunyuan_shape_progress(progress):
+                mesh = self._pipeline(image=image)[0]
         if cancellation.is_cancelled:
             raise RuntimeError("Hunyuan3D 2.0 generation was cancelled before publishing output")
         output_path.parent.mkdir(parents=True, exist_ok=True)
