@@ -2,7 +2,7 @@
 
 ## User interaction
 
-Global hotkey: `Ctrl+Alt+S`.
+Global hotkey: `Alt + /`.
 
 Idle:
 

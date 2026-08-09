@@ -5,8 +5,8 @@
 ### 1. 영역 선택 후 자동 녹화
 
 - 영역 드래그 후 마우스를 놓으면 영역만 잠금 처리한다.
-- 잠금 뒤에는 `Ctrl+Alt+S` 또는 `Start recording` 버튼으로만 녹화를 시작한다.
-- 녹화 중 `Ctrl+Alt+S` 또는 `Stop recording` 버튼은 종료 요청을 보낸다.
+- 잠금 뒤에는 `Alt + /` 또는 `Start recording` 버튼으로만 녹화를 시작한다.
+- 녹화 중 `Alt + /` 또는 `Stop recording` 버튼은 종료 요청을 보낸다.
 - 영역 선택 overlay는 잠금 즉시 닫히므로 추가 클릭으로 Bounds가 다시 바뀌지 않는다.
 
 ### 2. 검은 썸네일
@@ -45,7 +45,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\cms.ps1 verify
 
 ## 수동 확인 항목
 
-- 실제 게임 창에서 선택 영역 잠금 후 `Ctrl+Alt+S`로 시작되는지 확인한다.
+- 실제 게임 창에서 선택 영역 잠금 후 `Alt + /`로 시작되는지 확인한다.
 - 녹화 중 동일 Hotkey로 종료되는지 확인한다.
 - Preview와 썸네일이 검은색이 아닌지 확인한다.
 - Processing에서 단계 로그와 진행 표시가 업데이트되는지 확인한다.

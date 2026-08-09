@@ -4,7 +4,7 @@
 
 ## Delivered
 
-- Windows `Ctrl+Alt+S` global hotkey registration/release through an isolated native-event filter.
+- Windows `Alt + /` global hotkey registration/release through an isolated native-event filter.
 - One-monitor transparent region selector with warm high-contrast boundary, dimensions, Escape cancel, Enter confirmation, and minimum physical-pixel size enforcement.
 - DPI-aware logical-to-physical conversion, including 100%, 125%, 150%, and 200% automated geometry coverage.
 - DXcam Desktop Duplication adapter for BGR region frames.
@@ -26,7 +26,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\cms.ps1 verify
 
 - A real DXcam Desktop Duplication smoke test captured a `320 × 240` region and verified the frame dimensions.
 - A real DXcam frame was encoded to a temporary H.264 MP4 and thumbnail at the same `320 × 240` dimensions. The temporary artifacts were deleted without inspecting or retaining screen content.
-- Windows successfully registered and released `Ctrl+Alt+S` in a live Qt process.
+- Windows successfully registered and released `Alt + /` in a live Qt process.
 
 ## DPI Matrix
 

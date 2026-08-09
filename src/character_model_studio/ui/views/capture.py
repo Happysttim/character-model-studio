@@ -167,10 +167,7 @@ class CaptureWorkspace(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         panel = GlassPanel("secondary", self)
         panel_layout = QVBoxLayout(panel)
-        guidance = QLabel(
-            "Drag once to select a region; recording starts when the mouse is released. "
-            "Ctrl+Alt+S stops an active recording."
-        )
+        guidance = QLabel("Drag once to lock a region. Alt + / starts and stops recording.")
         guidance.setWordWrap(True)
         panel_layout.addWidget(guidance)
         standard = QRadioButton("Standard — Hunyuan3D 2.0 (Default)", panel)
@@ -257,7 +254,7 @@ class CaptureWorkspace(QWidget):
     def _set_capture_region(self, region: PhysicalRegion) -> None:
         """Lock the selected bounds until the user explicitly starts capture."""
         self._selected_region = region
-        self._status.label.setText("Capture region locked — press Ctrl+Alt+S to start")
+        self._status.label.setText("Capture region locked — press Alt + / to start")
         self._metadata.setText(f"Locked region: {region.width} × {region.height} pixels")
         self._action.setText("Start recording")
 
@@ -283,7 +280,7 @@ class CaptureWorkspace(QWidget):
         self._status.label.setText("● Recording locally")
         self._metadata.setText(
             f"● RECORDING {seconds // 60:02}:{seconds % 60:02} — "
-            "Ctrl+Alt+S or Stop recording ends capture"
+            "Alt + / or Stop recording ends capture"
         )
 
     def _capture_completed(self, result: CaptureResult) -> None:

@@ -105,7 +105,7 @@ class MainWindow(QMainWindow):
         fade_in(self._page_header, self._motion_preferences)
 
     def handle_capture_hotkey(self) -> None:
-        """Toggle the capture flow when Windows delivers Ctrl+Alt+S."""
+        """Toggle the capture flow when Windows delivers Alt + /."""
         self.navigate("capture")
         self._capture_workspace.handle_hotkey()
 

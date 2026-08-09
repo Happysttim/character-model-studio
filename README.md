@@ -54,7 +54,7 @@ There is no network boundary between UI and AI processing. Modules communicate b
 
 1. Launch the Windows app.
 2. Create or open a project.
-3. Press `Ctrl+Alt+S` to select a screen region.
+3. Press `Alt + /` to select a screen region.
 4. Record useful views of the character.
 5. Review the capture and start reconstruction.
 6. Extract/select representative frames locally.

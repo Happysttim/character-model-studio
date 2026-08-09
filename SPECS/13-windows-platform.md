@@ -14,7 +14,7 @@ The application must also define its own warm fallback background because Mica/A
 
 ## Global hotkey
 
-Register `Ctrl+Alt+S` through a Windows global hotkey mechanism and release it cleanly at shutdown.
+Register `Alt + /` through a Windows global hotkey mechanism and release it cleanly at shutdown.
 
 If registration fails because another application owns the combination:
 

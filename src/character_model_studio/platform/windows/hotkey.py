@@ -10,8 +10,7 @@ from ctypes import wintypes
 from PySide6.QtCore import QAbstractNativeEventFilter, QByteArray
 
 MOD_ALT = 0x0001
-MOD_CONTROL = 0x0002
-VK_S = 0x53
+VK_OEM_2 = 0xBF
 WM_HOTKEY = 0x0312
 
 
@@ -28,7 +27,7 @@ class _Message(ctypes.Structure):
 
 
 class WindowsCaptureHotkey(QAbstractNativeEventFilter):
-    """Register and release the MVP Ctrl+Alt+S global hotkey."""
+    """Register and release the MVP Alt + / global hotkey."""
 
     def __init__(self, callback: Callable[[], None], hotkey_id: int = 0x4353) -> None:
         super().__init__()
@@ -42,13 +41,13 @@ class WindowsCaptureHotkey(QAbstractNativeEventFilter):
         return self._registered
 
     def register(self) -> bool:
-        """Register Ctrl+Alt+S, returning False when Windows reports a conflict."""
+        """Register Alt + /, returning False when Windows reports a conflict."""
         if self._registered:
             return True
         if sys.platform != "win32":
             return False
         result = ctypes.windll.user32.RegisterHotKey(
-            wintypes.HWND(), self._hotkey_id, MOD_CONTROL | MOD_ALT, VK_S
+            wintypes.HWND(), self._hotkey_id, MOD_ALT, VK_OEM_2
         )
         self._registered = result != 0
         return self._registered
