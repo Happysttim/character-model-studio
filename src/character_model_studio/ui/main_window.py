@@ -2,18 +2,15 @@
 
 from __future__ import annotations
 
-import sys
-from ctypes import wintypes
-from typing import cast
-
-from PySide6.QtCore import QByteArray, QPoint, QSize, Qt
-from PySide6.QtGui import QCursor, QMouseEvent, QShowEvent
+from PySide6.QtCore import QPoint, QSize, Qt
+from PySide6.QtGui import QMouseEvent, QResizeEvent, QShowEvent
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
     QMainWindow,
     QPushButton,
+    QSizeGrip,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -96,6 +93,9 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(QSize(1180, 760))
         self.setStyleSheet(application_stylesheet())
         self._build_shell()
+        self._resize_grip = QSizeGrip(self)
+        self._resize_grip.setObjectName("windowResizeGrip")
+        self._position_resize_grip()
         self.navigate("projects")
 
     @property
@@ -244,45 +244,13 @@ class MainWindow(QMainWindow):
             self._backdrop_requested = True
             enable_system_backdrop(int(self.winId()))
 
-    def nativeEvent(  # noqa: N802
-        self, event_type: QByteArray | bytes | bytearray | memoryview[int], message: int
-    ) -> tuple[bool, int]:
-        """Use Windows hit testing so every frameless window edge can resize natively."""
-        if (
-            sys.platform == "win32"
-            and event_type == b"windows_generic_MSG"
-            and not self.isMaximized()
-        ):
-            native_message = wintypes.MSG.from_address(message)
-            if native_message.message == 0x0084:  # WM_NCHITTEST
-                hit = _window_resize_hit_test(self)
-                if hit is not None:
-                    return True, hit
-        return cast(tuple[bool, int], super().nativeEvent(event_type, message))
+    def resizeEvent(self, event: QResizeEvent) -> None:  # noqa: N802
+        """Keep the visible Qt resize grip in the lower-right window corner."""
+        super().resizeEvent(event)
+        self._position_resize_grip()
 
-
-def _window_resize_hit_test(window: QMainWindow) -> int | None:
-    """Return a Windows sizing hit-test code when the cursor is on a window edge."""
-    border = 8
-    point = window.mapFromGlobal(QCursor.pos())
-    left = point.x() < border
-    right = point.x() >= window.width() - border
-    top = point.y() < border
-    bottom = point.y() >= window.height() - border
-    if top and left:
-        return 13  # HTTOPLEFT
-    if top and right:
-        return 14  # HTTOPRIGHT
-    if bottom and left:
-        return 16  # HTBOTTOMLEFT
-    if bottom and right:
-        return 17  # HTBOTTOMRIGHT
-    if left:
-        return 10  # HTLEFT
-    if right:
-        return 11  # HTRIGHT
-    if top:
-        return 12  # HTTOP
-    if bottom:
-        return 15  # HTBOTTOM
-    return None
+    def _position_resize_grip(self) -> None:
+        grip_size = self._resize_grip.sizeHint()
+        self._resize_grip.resize(grip_size)
+        self._resize_grip.move(self.width() - grip_size.width(), self.height() - grip_size.height())
+        self._resize_grip.raise_()
