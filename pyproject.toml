@@ -1,0 +1,74 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "character-model-studio"
+version = "0.1.0"
+description = "Windows-local character capture, reconstruction, rigging, and animation desktop application."
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+  "PySide6==6.11.1",
+  "av==18.0.0",
+  "dxcam==0.3.0",
+  "nvidia-ml-py==13.610.43",
+  "numpy==2.4.4",
+  "opencv-python==5.0.0.93",
+  "pillow==12.2.0",
+  "pygltflib==1.16.5",
+  "pyvista==0.48.4",
+  "pyvistaqt==0.12.0",
+  "scipy==1.17.1",
+  "torch==2.5.1",
+  "torchaudio==2.5.1",
+  "torchvision==0.20.1",
+  "trimesh==5.0.0",
+  "vtk==9.6.2",
+]
+
+[dependency-groups]
+dev = [
+  "mypy==2.3.0",
+  "pyinstaller==6.22.0",
+  "pytest==9.1.1",
+  "pytest-cov==7.1.0",
+  "pytest-qt==4.5.0",
+  "ruff==0.16.2",
+]
+
+[project.scripts]
+character-model-studio = "character_model_studio.main:run"
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu124" }
+torchaudio = { index = "pytorch-cu124" }
+torchvision = { index = "pytorch-cu124" }
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+qt_api = "pyside6"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src"]
+strict = true
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = ["PySide6", "PySide6.*"]
+ignore_missing_imports = true
