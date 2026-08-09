@@ -2,7 +2,7 @@
 param(
     [Parameter(Mandatory = $true, Position = 0)]
     [ValidateSet(
-        'bootstrap', 'format', 'lint', 'typecheck', 'test', 'test-ui', 'test-storage',
+        'bootstrap', 'run', 'format', 'lint', 'typecheck', 'test', 'test-ui', 'test-storage',
         'test-capture', 'test-ai-mock', 'test-provider-compatibility', 'test-gpu',
         'test-reconstruction', 'test-rigging', 'test-animation', 'test-model-validation',
         'test-rigged-model-validation', 'test-integration', 'build', 'package', 'verify'
@@ -36,6 +36,7 @@ try {
 
     switch ($Command) {
         'bootstrap' { Invoke-ProjectPython @('-m', 'character_model_studio.tools.bootstrap') }
+        'run' { Invoke-ProjectPython @('-m', 'character_model_studio') }
         'format' { Invoke-ProjectPython @('-m', 'ruff', 'format', 'src', 'tests') }
         'lint' { Invoke-ProjectPython @('-m', 'ruff', 'check', 'src', 'tests') }
         'typecheck' { Invoke-ProjectPython @('-m', 'mypy') }
