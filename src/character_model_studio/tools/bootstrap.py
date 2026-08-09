@@ -12,7 +12,7 @@ def main() -> int:
     """Initialize safe local services and report provider installation state."""
     create_application_context()
     provider_modules = {
-        "hunyuan3d_2": "hunyuan3d",
+        "hunyuan3d_2": "hy3dgen",
         "hunyuan3d_2_1": "hunyuan3d_2_1",
         "skintokens": "skintokens",
         "unirig": "unirig",

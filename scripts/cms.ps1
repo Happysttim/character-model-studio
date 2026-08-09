@@ -22,6 +22,8 @@ Push-Location $projectRoot
 try {
     Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
     $env:CHARACTER_MODEL_STUDIO_DATA_DIR = Join-Path $projectRoot '.local'
+    $env:HY3DGEN_MODELS = Join-Path $env:CHARACTER_MODEL_STUDIO_DATA_DIR 'cache\hunyuan3d-2'
+    $env:HF_HOME = Join-Path $env:CHARACTER_MODEL_STUDIO_DATA_DIR 'cache\huggingface'
 
     function Invoke-ProjectPython {
         param([string[]]$Arguments)

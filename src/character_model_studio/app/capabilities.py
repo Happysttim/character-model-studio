@@ -120,9 +120,7 @@ def probe_runtime() -> RuntimeCapabilities:
         gpu,
         tier,
         capability_set,
-        _provider_readiness(
-            "Hunyuan3D 2.0", "hunyuan3d", Capability.STANDARD_SHAPE, capability_set
-        ),
+        _provider_readiness("Hunyuan3D 2.0", "hy3dgen", Capability.STANDARD_SHAPE, capability_set),
         _provider_readiness(
             "Hunyuan3D 2.1", "hunyuan3d_2_1", Capability.HIGH_QUALITY_SHAPE, capability_set
         ),
