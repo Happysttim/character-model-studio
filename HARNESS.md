@@ -50,6 +50,7 @@ test-capture
 test-ai-mock
 test-provider-compatibility
 test-gpu
+test-segmentation
 test-reconstruction
 test-rigging
 test-animation
@@ -222,6 +223,17 @@ Reject the phase if the UI violates the anti-pattern list in `AGENTS.md` or `SPE
 Passing unit tests, default Qt styling, or placeholder panels are not substitutes for visual review.
 
 ---
+
+## `test-segmentation`
+
+Must verify at minimum:
+
+- the configured local segmentation model exists before inference begins;
+- ONNX Runtime creates a `CUDAExecutionProvider` session in the project runtime;
+- a real local image produces both an RGBA foreground image and a non-empty alpha mask;
+- no capture or model data is uploaded or sent to a local server;
+- the provider releases its session before Hunyuan reconstruction acquires the GPU;
+- a missing model or CUDA provider is reported as unavailable rather than falling back to CPU.
 
 ## `test-capture`
 

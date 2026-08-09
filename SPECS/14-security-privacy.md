@@ -29,6 +29,10 @@ Destructive deletion requires confirmation.
 
 Store downloaded weights in a dedicated cache location. Verify source/checksum when the provider distribution supports it.
 
+The local segmentation model follows the same rule. Its explicit download command writes to the configured `U2NET_HOME`
+cache; reconstruction must not initiate a model download. Isolated RGBA frames and alpha masks are local project artifacts
+and receive the same handling as the source capture.
+
 ## Arbitrary files
 
 Treat imported GLB/video files as untrusted input. Parse in background tasks, validate file type/size, and surface parser failures rather than crashing the UI.

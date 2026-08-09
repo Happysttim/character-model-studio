@@ -148,6 +148,14 @@ Preferred strategy:
 2. provide a lightweight Windows-compatible background-removal adapter when needed;
 3. add SAM-family adapters only after native Windows installation and GPU execution are proven.
 
+Current baseline provider:
+
+- `rembg[gpu]` 2.0.78 with `onnxruntime-gpu` 1.26.0;
+- `isnet-anime.onnx` for game/anime character isolation (approximately 176 MB);
+- model cache resolved through `U2NET_HOME`, derived from the configured application-data root;
+- `CUDAExecutionProvider` is mandatory for production isolation. Do not accept ONNX Runtime CPU fallback;
+- the model is downloaded only through the explicit local model-download command, never during reconstruction.
+
 Do not require WSL for the Windows desktop product.
 
 ## UI motion

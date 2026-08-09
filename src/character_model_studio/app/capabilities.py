@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import Path
 
 
 class Capability(StrEnum):
     CUDA = "CUDA"
+    CHARACTER_SEGMENTATION = "CHARACTER_SEGMENTATION"
     STANDARD_SHAPE = "STANDARD_SHAPE"
     STANDARD_TEXTURED_PIPELINE = "STANDARD_TEXTURED_PIPELINE"
     HIGH_QUALITY_SHAPE = "HIGH_QUALITY_SHAPE"
@@ -67,6 +70,7 @@ class RuntimeCapabilities:
     tier: VramTier
     capabilities: frozenset[Capability]
     standard: ProviderReadiness
+    segmentation: ProviderReadiness
     high_quality: ProviderReadiness
     rigging: ProviderReadiness
 
@@ -117,11 +121,15 @@ def probe_runtime() -> RuntimeCapabilities:
     tier = classify_vram(gpu.total_vram_bytes)
     capability_set = _capabilities(gpu.cuda_available, tier)
     standard = _standard_provider_readiness(capability_set)
+    segmentation = _segmentation_provider_readiness(capability_set)
+    if segmentation.status is ReadinessStatus.READY:
+        capability_set = frozenset({*capability_set, Capability.CHARACTER_SEGMENTATION})
     return RuntimeCapabilities(
         gpu,
         tier,
         capability_set,
         standard,
+        segmentation,
         _provider_readiness(
             "Hunyuan3D 2.1", "hunyuan3d_2_1", Capability.HIGH_QUALITY_SHAPE, capability_set
         ),
@@ -234,6 +242,70 @@ def _standard_provider_readiness(capabilities: frozenset[Capability]) -> Provide
         "Hunyuan3D 2.0",
         ReadinessStatus.READY,
         "Local Shape checkpoint is ready; weights remain lazy-loaded until reconstruction starts",
+        True,
+        True,
+    )
+
+
+def _segmentation_provider_readiness(
+    capabilities: frozenset[Capability],
+) -> ProviderReadiness:
+    """Check local rembg model/CUDA provider availability without loading the model."""
+    provider_name = "rembg isnet-anime"
+    installed = (
+        importlib.util.find_spec("rembg") is not None
+        and importlib.util.find_spec("onnxruntime") is not None
+    )
+    if Capability.CUDA not in capabilities:
+        return ProviderReadiness(
+            provider_name,
+            ReadinessStatus.CUDA_UNAVAILABLE,
+            "CUDA is unavailable; background isolation will not fall back to CPU",
+            installed,
+            False,
+        )
+    if not installed:
+        return ProviderReadiness(
+            provider_name,
+            ReadinessStatus.NOT_INSTALLED,
+            "Install rembg[gpu] and onnxruntime-gpu to enable local background isolation",
+            False,
+            True,
+        )
+    try:
+        import onnxruntime as ort
+
+        if "CUDAExecutionProvider" not in ort.get_available_providers():
+            return ProviderReadiness(
+                provider_name,
+                ReadinessStatus.PROVIDER_RUNTIME_INCOMPATIBLE,
+                "ONNX Runtime CUDAExecutionProvider is unavailable",
+                True,
+                True,
+            )
+    except (ImportError, OSError, RuntimeError) as error:
+        return ProviderReadiness(
+            provider_name,
+            ReadinessStatus.PROVIDER_RUNTIME_INCOMPATIBLE,
+            f"ONNX Runtime could not report CUDA support: {error}",
+            True,
+            True,
+        )
+    model_name = os.environ.get("CHARACTER_MODEL_STUDIO_SEGMENTATION_MODEL", "isnet-anime")
+    cache_directory = os.environ.get("U2NET_HOME")
+    model_path = Path(cache_directory) / f"{model_name}.onnx" if cache_directory else None
+    if model_path is None or not model_path.is_file():
+        return ProviderReadiness(
+            provider_name,
+            ReadinessStatus.NOT_INSTALLED,
+            "The selected local segmentation model has not been downloaded",
+            True,
+            True,
+        )
+    return ProviderReadiness(
+        provider_name,
+        ReadinessStatus.READY,
+        "Local isnet-anime model and ONNX Runtime CUDA provider are ready",
         True,
         True,
     )

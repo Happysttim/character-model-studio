@@ -39,3 +39,28 @@ class ReconstructionProvider(ABC):
         progress: Callable[[str, int, int], None] | None = None,
     ) -> Path:
         """Generate a model artifact and return its project-relative path."""
+
+
+class SegmentationProvider(ABC):
+    """A local, lazily loaded foreground-isolation provider."""
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Return the stable provider name."""
+
+    @abstractmethod
+    def probe(self) -> ProviderReadiness:
+        """Return local model/runtime readiness without downloading weights."""
+
+    @abstractmethod
+    def load(self) -> None:
+        """Load the provider in an application-owned background task."""
+
+    @abstractmethod
+    def isolate(self, input_path: Path, output_path: Path, mask_path: Path) -> Path:
+        """Write a transparent foreground image and its alpha mask locally."""
+
+    @abstractmethod
+    def unload(self) -> None:
+        """Release provider references before another GPU provider loads."""

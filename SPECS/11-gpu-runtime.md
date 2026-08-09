@@ -37,6 +37,7 @@ Do not represent GPU support as one boolean.
 At minimum derive:
 
 - `CUDA`
+- `CHARACTER_SEGMENTATION`
 - `STANDARD_SHAPE`
 - `STANDARD_TEXTURED_PIPELINE`
 - `HIGH_QUALITY_SHAPE`
@@ -119,6 +120,10 @@ Do not classify using current free VRAM. Record free VRAM only for diagnostics a
 ## Reconstruction ownership
 
 Default concurrency: one heavyweight AI operation on the primary CUDA device.
+
+The CUDA segmentation provider must unload before Hunyuan Shape loading begins. Its runtime readiness is independent
+from the total-VRAM product tier: total VRAM determines tier assignment, while free VRAM is recorded as an operation
+start warning only.
 
 Frame preprocessing may overlap where it does not create harmful VRAM pressure.
 

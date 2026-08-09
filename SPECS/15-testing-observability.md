@@ -21,6 +21,7 @@ Provide a lightweight diagnostics screen showing:
 - PyTorch version;
 - CUDA availability/runtime reported by PyTorch;
 - Standard provider/version/readiness;
+- Segmentation provider/model/readiness and CUDA execution-provider status;
 - High Quality provider/version/readiness;
 - rigging provider/version/readiness;
 - storage paths;

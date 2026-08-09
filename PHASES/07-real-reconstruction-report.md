@@ -13,6 +13,16 @@
 
 ## Real Standard Shape Validation
 
+## Follow-up: Local Character Isolation
+
+- Added the Windows-native `rembg` `isnet-anime` segmentation provider as a CUDA-only pre-processing stage.
+- The provider writes an isolated RGBA frame and alpha mask as attempt artifacts, unloads its ONNX session, and only
+  then loads Hunyuan Shape.
+- The model is resolved from the configured local `U2NET_HOME` cache. Download is explicit and inference never triggers
+  a network request or accepts a CPU execution-provider fallback.
+- The end-to-end Hunyuan re-smoke must be repeated when sufficient free GPU memory is available. A timeout during
+  concurrent external GPU use is documented as an execution-time warning, not a successful reconstruction result.
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\cms.ps1 bootstrap
 powershell -ExecutionPolicy Bypass -File .\scripts\cms.ps1 verify

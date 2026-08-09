@@ -15,6 +15,9 @@ from character_model_studio.domain.models import ProgressUpdate
 from character_model_studio.domain.states import AttemptStatus
 from character_model_studio.reconstruction.preprocessing import select_representative_frame
 from character_model_studio.reconstruction.providers.hunyuan2 import Hunyuan3D20Provider
+from character_model_studio.reconstruction.providers.rembg_segmentation import (
+    RembgAnimeSegmentationProvider,
+)
 from character_model_studio.storage.repositories import LocalRepository
 from character_model_studio.validation.model import ModelValidator, ValidationStatus
 
@@ -31,6 +34,7 @@ class StandardShapeWorkflow:
     ) -> Path:
         """Publish an untextured Standard GLB or leave the attempt in a truthful terminal state."""
         provider = Hunyuan3D20Provider()
+        segmentation = RembgAnimeSegmentationProvider()
         started = time.perf_counter()
         runtime = probe_runtime()
         try:
@@ -50,6 +54,19 @@ class StandardShapeWorkflow:
                 repository.transition_attempt(attempt_id, AttemptStatus.CANCELLED)
                 return input_path
 
+            progress(
+                ProgressUpdate(
+                    "segment", "Removing the capture background on local CUDA", None, True
+                )
+            )
+            isolated_input_path = repository.attempt_artifact_path(
+                attempt_id, "inputs/isolated-character.png"
+            )
+            mask_path = repository.attempt_artifact_path(attempt_id, "inputs/character-mask.png")
+            segmentation.load()
+            segmentation.isolate(input_path, isolated_input_path, mask_path)
+            segmentation.unload()
+
             device = torch.device("cuda:0")
             torch.cuda.empty_cache()
             torch.cuda.reset_peak_memory_stats(device)
@@ -61,7 +78,9 @@ class StandardShapeWorkflow:
             after_load = _gpu_memory(device)
             progress(ProgressUpdate("shape", "Generating untextured 3D shape", None, True))
             output_path = repository.attempt_artifact_path(attempt_id, "model.glb")
-            provider.generate_shape([input_path], output_path, token, _shape_progress(progress))
+            provider.generate_shape(
+                [isolated_input_path], output_path, token, _shape_progress(progress)
+            )
             torch.cuda.synchronize(device)
 
             repository.transition_attempt(
@@ -94,6 +113,13 @@ class StandardShapeWorkflow:
                     "sharpness": selection.sharpness,
                     "output_path": repository.as_project_relative_path(input_path),
                 },
+                "segmentation": {
+                    "provider": segmentation.name,
+                    "model": segmentation.model_name,
+                    "input_path": repository.as_project_relative_path(input_path),
+                    "isolated_input_path": repository.as_project_relative_path(isolated_input_path),
+                    "mask_path": repository.as_project_relative_path(mask_path),
+                },
                 "output_path": repository.as_project_relative_path(output_path),
                 "vertex_count": validation.metrics["vertex_count"],
                 "face_count": validation.metrics["face_count"],
@@ -115,6 +141,7 @@ class StandardShapeWorkflow:
                 repository.transition_attempt(attempt_id, AttemptStatus.FAILED)
             raise RuntimeError(f"Standard Hunyuan3D 2.0 Shape failed: {error}") from error
         finally:
+            segmentation.unload()
             provider.unload()
             gc.collect()
             if torch.cuda.is_available():

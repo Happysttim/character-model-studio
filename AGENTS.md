@@ -187,6 +187,13 @@ Use interfaces similar to:
 - `SegmentationProvider`
 - `FrameSelectionStrategy`
 
+Baseline character-isolation policy:
+
+- Default local segmentation provider: `rembg` with the locally cached `isnet-anime` model.
+- Segmentation must use ONNX Runtime `CUDAExecutionProvider`; do not silently execute it on CPU.
+- Model downloads are explicit user actions. Inference resolves only the configured local cache path.
+- Persist the selected source frame, isolated RGBA input, alpha mask, provider, and model identifier with the attempt.
+
 Default/optional provider policy:
 
 - Standard reconstruction: Hunyuan3D 2.0.

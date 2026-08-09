@@ -32,10 +32,13 @@ def create_application_context() -> ApplicationContext:
     paths.ensure_exists()
     hunyuan_cache = paths.cache_directory / "hunyuan3d-2"
     huggingface_cache = paths.cache_directory / "huggingface"
+    segmentation_cache = paths.cache_directory / "segmentation" / "rembg"
     hunyuan_cache.mkdir(parents=True, exist_ok=True)
     huggingface_cache.mkdir(parents=True, exist_ok=True)
+    segmentation_cache.mkdir(parents=True, exist_ok=True)
     os.environ.setdefault("HY3DGEN_MODELS", str(hunyuan_cache))
     os.environ.setdefault("HF_HOME", str(huggingface_cache))
+    os.environ.setdefault("U2NET_HOME", str(segmentation_cache))
     logger = configure_logging(paths.logs_directory)
     initialize_database(paths.database_path)
     repository = LocalRepository(paths.database_path, paths.projects_directory)

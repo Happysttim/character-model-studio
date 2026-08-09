@@ -5,6 +5,7 @@
 ## Delivered
 
 - Native Capture workspace connection from recorded MP4 preview to project-local capture registration, real Standard Shape attempt, background progress/error/cancellation state, persisted validation, and review navigation.
+- Standard attempts now isolate the selected character frame through the local CUDA segmentation provider before Hunyuan Shape inference, preserving the original frame, RGBA foreground, and alpha mask as attempt artifacts.
 - Review workspace connection that opens the real generated GLB, displays the selected source frame, persists Accept/Reject decisions, and returns Regenerate to Capture without a server boundary.
 - Startup recovery that marks interrupted active attempts as failed while preserving their artifacts and leaving non-active attempts untouched.
 - Project-history query for reopening local project metadata.

@@ -28,6 +28,7 @@ def main() -> int:
                 "tier": runtime.tier,
                 "cuda": runtime.gpu.cuda_available,
                 "standard": runtime.standard.status,
+                "segmentation": runtime.segmentation.status,
                 "high_quality": runtime.high_quality.status,
                 "rigging": runtime.rigging.status,
             },

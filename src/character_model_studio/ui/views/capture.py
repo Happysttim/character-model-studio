@@ -175,7 +175,10 @@ class CaptureWorkspace(QWidget):
         high_quality = QRadioButton("High Quality — Hunyuan3D 2.1 (Optional)", panel)
         runtime = context.runtime
         if runtime is not None:
-            standard.setToolTip(runtime.standard.reason)
+            standard.setToolTip(
+                f"Shape: {runtime.standard.reason}\n"
+                f"Background isolation: {runtime.segmentation.reason}"
+            )
             high_quality.setEnabled(runtime.high_quality.status.value == "READY")
             high_quality.setToolTip(runtime.high_quality.reason)
         panel_layout.addWidget(standard)
@@ -319,15 +322,12 @@ class CaptureWorkspace(QWidget):
         self._preview.hide()
         self._play_preview.show()
         self._discard.show()
-        standard_ready = (
-            self._context.runtime is not None
-            and self._context.runtime.standard.status.value == "READY"
-        )
+        standard_ready = self._standard_workflow_is_ready()
         self._generate.setEnabled(standard_ready)
         self._generate.setToolTip(
-            "Run local Hunyuan3D 2.0 Shape on CUDA"
+            "Remove the background locally on CUDA, then run Hunyuan3D 2.0 Shape"
             if standard_ready
-            else "Standard Shape is unavailable"
+            else self._standard_workflow_unavailable_reason()
         )
         self._generate.show()
 
@@ -346,6 +346,9 @@ class CaptureWorkspace(QWidget):
         if self._reconstruction_token is not None:
             self._reconstruction_token.cancel()
             self._status.label.setText("Cancellation requested; releasing the local CUDA provider")
+            return
+        if not self._standard_workflow_is_ready():
+            self._status.label.setText(self._standard_workflow_unavailable_reason())
             return
         repository = self._context.repository
         if repository is None or self._capture_id is None:
@@ -385,6 +388,22 @@ class CaptureWorkspace(QWidget):
         self._generate.setText("Generate Standard Shape")
         self._status.label.setText(f"Reconstruction failed: {detail}")
         self.reconstruction_finished.emit(f"Reconstruction failed: {detail}", False)
+
+    def _standard_workflow_is_ready(self) -> bool:
+        runtime = self._context.runtime
+        return (
+            runtime is not None
+            and runtime.standard.status.value == "READY"
+            and runtime.segmentation.status.value == "READY"
+        )
+
+    def _standard_workflow_unavailable_reason(self) -> str:
+        runtime = self._context.runtime
+        if runtime is None:
+            return "Runtime readiness is unavailable"
+        if runtime.standard.status.value != "READY":
+            return f"Standard Shape is unavailable: {runtime.standard.reason}"
+        return f"Background isolation is unavailable: {runtime.segmentation.reason}"
 
     def discard_capture(self) -> None:
         """Remove only the most recent unassigned capture after the user explicitly requests it."""

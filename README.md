@@ -57,7 +57,7 @@ There is no network boundary between UI and AI processing. Modules communicate b
 3. Press `Alt + /` to select a screen region.
 4. Record useful views of the character.
 5. Review the capture and start reconstruction.
-6. Extract/select representative frames locally.
+6. Extract/select a representative frame and isolate the character locally on CUDA.
 7. Run Standard or eligible High Quality reconstruction on NVIDIA CUDA.
 8. Produce a GLB asset.
 9. Run technical model validation.

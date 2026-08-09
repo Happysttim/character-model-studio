@@ -60,6 +60,10 @@ The pipeline must be able to:
 - use a lightweight Windows-compatible background-isolation provider where necessary;
 - store masks/alpha inputs as attempt artifacts for debugging.
 
+For the current Windows baseline, use the locally cached `rembg` `isnet-anime` ONNX model. The provider runs through
+ONNX Runtime `CUDAExecutionProvider`, is unloaded before Hunyuan Shape load, and must never silently use a CPU
+execution provider. Model download is an explicit user action; reconstruction resolves only the configured local cache.
+
 ## Reconstruction provider contract
 
 Expose a `ReconstructionProvider` contract conceptually equivalent to:

@@ -4,6 +4,7 @@ param(
     [ValidateSet(
         'bootstrap', 'run', 'format', 'lint', 'typecheck', 'test', 'test-ui', 'test-storage',
         'test-capture', 'test-ai-mock', 'test-provider-compatibility', 'test-gpu',
+        'test-segmentation', 'download-segmentation-model',
         'test-reconstruction', 'test-rigging', 'test-animation', 'test-model-validation',
         'test-rigged-model-validation', 'test-integration', 'build', 'package', 'verify'
     )]
@@ -24,6 +25,7 @@ try {
     $env:CHARACTER_MODEL_STUDIO_DATA_DIR = Join-Path $projectRoot '.local'
     $env:HY3DGEN_MODELS = Join-Path $env:CHARACTER_MODEL_STUDIO_DATA_DIR 'cache\hunyuan3d-2'
     $env:HF_HOME = Join-Path $env:CHARACTER_MODEL_STUDIO_DATA_DIR 'cache\huggingface'
+    $env:U2NET_HOME = Join-Path $env:CHARACTER_MODEL_STUDIO_DATA_DIR 'cache\segmentation\rembg'
 
     function Invoke-ProjectPython {
         param([string[]]$Arguments)
@@ -47,6 +49,10 @@ try {
         'test-ai-mock' { Invoke-ProjectPython @('-m', 'pytest', 'tests/test_mock_workflow.py') }
         'test-provider-compatibility' { Invoke-ProjectPython @('-m', 'character_model_studio.tools.provider_compatibility') }
         'test-gpu' { Invoke-ProjectPython @('-m', 'character_model_studio.tools.gpu_smoke') }
+        'test-segmentation' { Invoke-ProjectPython @('-m', 'character_model_studio.tools.segmentation_smoke') }
+        'download-segmentation-model' {
+            Invoke-ProjectPython @('-m', 'character_model_studio.tools.download_segmentation_model')
+        }
         'test-reconstruction' {
             Invoke-ProjectPython @('-m', 'character_model_studio.tools.reconstruction_smoke')
             Invoke-ProjectPython @('-m', 'character_model_studio.tools.real_workflow_smoke')

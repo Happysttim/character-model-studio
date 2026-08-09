@@ -14,11 +14,13 @@ dependencies = [
   "dxcam==0.3.0",
   "nvidia-ml-py==13.610.43",
   "numpy==2.4.4",
+  "onnxruntime-gpu==1.26.0",
   "opencv-python==5.0.0.93",
   "pillow==12.2.0",
   "pygltflib==1.16.5",
   "pyvista==0.48.4",
   "pyvistaqt==0.12.0",
+  "rembg[gpu]==2.0.78",
   "scipy==1.17.1",
   "torch==2.5.1",
   "torchaudio==2.5.1",
@@ -70,5 +72,5 @@ strict = true
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
-module = ["PySide6", "PySide6.*", "pyvista", "pyvista.*", "pyvistaqt", "trimesh", "trimesh.*"]
+module = ["PySide6", "PySide6.*", "onnxruntime", "pyvista", "pyvista.*", "pyvistaqt", "rembg", "trimesh", "trimesh.*"]
 ignore_missing_imports = true
