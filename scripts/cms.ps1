@@ -4,7 +4,7 @@ param(
     [ValidateSet(
         'bootstrap', 'run', 'format', 'lint', 'typecheck', 'test', 'test-ui', 'test-storage',
         'test-capture', 'test-ai-mock', 'test-provider-compatibility', 'test-gpu',
-        'test-segmentation', 'download-segmentation-model',
+        'test-segmentation', 'download-segmentation-model', 'test-sf3d',
         'test-reconstruction', 'test-rigging', 'test-animation', 'test-model-validation',
         'test-rigged-model-validation', 'test-integration', 'build', 'package', 'verify'
     )]
@@ -50,6 +50,7 @@ try {
         'test-provider-compatibility' { Invoke-ProjectPython @('-m', 'character_model_studio.tools.provider_compatibility') }
         'test-gpu' { Invoke-ProjectPython @('-m', 'character_model_studio.tools.gpu_smoke') }
         'test-segmentation' { Invoke-ProjectPython @('-m', 'character_model_studio.tools.segmentation_smoke') }
+        'test-sf3d' { Invoke-ProjectPython @('-m', 'character_model_studio.tools.sf3d_smoke') }
         'download-segmentation-model' {
             Invoke-ProjectPython @('-m', 'character_model_studio.tools.download_segmentation_model')
         }
