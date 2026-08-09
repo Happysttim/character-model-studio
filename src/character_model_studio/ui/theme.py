@@ -9,16 +9,16 @@ from dataclasses import dataclass
 class ThemeTokens:
     """The small, deliberate palette shared by every Qt Widgets surface."""
 
-    canvas_warm: str = "#201B19"
-    canvas_warm_alt: str = "#2A211E"
-    glass_base: str = "rgba(255, 244, 235, 0.08)"
-    glass_raised: str = "rgba(255, 248, 241, 0.12)"
-    glass_strong: str = "rgba(255, 248, 241, 0.17)"
-    border_soft: str = "rgba(255, 232, 218, 0.16)"
+    canvas_warm: str = "#F5E6D7"
+    canvas_warm_alt: str = "#E7C8AF"
+    glass_base: str = "rgba(255, 250, 244, 0.62)"
+    glass_raised: str = "rgba(255, 252, 248, 0.70)"
+    glass_strong: str = "rgba(255, 248, 240, 0.80)"
+    border_soft: str = "rgba(143, 79, 50, 0.22)"
     border_focus: str = "rgba(255, 181, 122, 0.65)"
-    text_primary: str = "#FFF7F1"
-    text_secondary: str = "#D9C9BF"
-    text_muted: str = "#A99589"
+    text_primary: str = "#3E241B"
+    text_secondary: str = "#633C2E"
+    text_muted: str = "#876657"
     amber: str = "#F2A65A"
     apricot: str = "#FFBE88"
     coral: str = "#E97B67"
@@ -42,16 +42,23 @@ def application_stylesheet(tokens: ThemeTokens = TOKENS) -> str:
             font-size: 14px;
         }}
         QMainWindow#mainWindow {{
-            background-color: {tokens.canvas_warm};
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                stop:0 #FCE5CF, stop:0.38 #F8D5BF, stop:0.7 #EFC9B6, stop:1 #DCC4B5);
         }}
+        QFrame#windowTitleBar {{ background: rgba(255, 249, 241, 0.80); min-height: 38px; }}
+        QPushButton#windowControl {{
+            background: transparent; border: 0; color: {tokens.text_primary};
+            min-width: 34px; min-height: 30px;
+        }}
+        QPushButton#windowControl:hover {{ background: rgba(201, 106, 75, 0.18); }}
         QFrame#navigationPane {{
             background-color: {tokens.canvas_warm_alt};
             border-right: 1px solid {tokens.border_soft};
         }}
         QFrame#workspaceSurface {{
             background-color: {tokens.glass_base};
-            border: 1px solid {tokens.border_soft};
-            border-radius: 18px;
+            border: 0;
+            border-radius: 0;
         }}
         QFrame[glassLevel="secondary"] {{
             background-color: {tokens.glass_raised};

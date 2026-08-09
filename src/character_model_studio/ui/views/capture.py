@@ -183,8 +183,8 @@ class CaptureWorkspace(QWidget):
             high_quality.setToolTip(runtime.high_quality.reason)
         panel_layout.addWidget(standard)
         panel_layout.addWidget(high_quality)
-        self._action = PrimaryButton("Select & Record", panel)
-        self._action.clicked.connect(self.open_selector)
+        self._action = PrimaryButton("Select capture region", panel)
+        self._action.clicked.connect(self._handle_capture_action)
         panel_layout.addWidget(self._action, alignment=Qt.AlignmentFlag.AlignLeft)
         self._status = StatusIndicator("Ready for one-monitor capture", "ready", panel)
         panel_layout.addWidget(self._status, alignment=Qt.AlignmentFlag.AlignLeft)
@@ -211,6 +211,7 @@ class CaptureWorkspace(QWidget):
         self._session.elapsed_changed.connect(self._show_capture_elapsed)
         self._last_result: CaptureResult | None = None
         self._capture_id: str | None = None
+        self._selected_region: PhysicalRegion | None = None
         self._reconstruction_runner = RealStandardWorkflowTaskRunner()
         self._reconstruction_runner.progress.connect(self._show_reconstruction_progress)
         self._reconstruction_runner.completed.connect(self._reconstruction_completed)
@@ -229,20 +230,42 @@ class CaptureWorkspace(QWidget):
 
         screen = QGuiApplication.primaryScreen()
         self._overlay = RegionSelectionOverlay(screen)
-        self._overlay.selected.connect(self.start_recording)
+        self._overlay.selected.connect(self._set_capture_region)
         self._overlay.cancelled.connect(
             lambda: self._status.label.setText("Capture selection cancelled")
         )
         self._overlay.show()
         self._overlay.activateWindow()
 
+    def handle_hotkey(self) -> None:
+        """Start/stop only after a region is locked; otherwise open region selection."""
+        if self.is_recording:
+            self.stop_recording()
+        elif self._selected_region is not None:
+            self.start_recording(self._selected_region)
+        else:
+            self.open_selector()
+
+    def _handle_capture_action(self) -> None:
+        if self.is_recording:
+            self.stop_recording()
+        elif self._selected_region is None:
+            self.open_selector()
+        else:
+            self.start_recording(self._selected_region)
+
+    def _set_capture_region(self, region: PhysicalRegion) -> None:
+        """Lock the selected bounds until the user explicitly starts capture."""
+        self._selected_region = region
+        self._status.label.setText("Capture region locked — press Ctrl+Alt+S to start")
+        self._metadata.setText(f"Locked region: {region.width} × {region.height} pixels")
+        self._action.setText("Start recording")
+
     def start_recording(self, region: PhysicalRegion) -> None:
         """Start the DXcam/PyAV worker for a confirmed physical region."""
         capture_id = uuid.uuid4().hex
         capture_root = self._context.paths.projects_directory / "UnassignedCaptures" / capture_id
         self._action.setText("Stop recording")
-        self._action.clicked.disconnect()
-        self._action.clicked.connect(self.stop_recording)
         self._status.label.setText("Recording locally")
         self._metadata.setText("● RECORDING — waiting for the first captured frame…")
         self._indicator.start(region)
@@ -265,9 +288,7 @@ class CaptureWorkspace(QWidget):
 
     def _capture_completed(self, result: CaptureResult) -> None:
         self._indicator.stop()
-        self._action.setText("Select & Record")
-        self._action.clicked.disconnect()
-        self._action.clicked.connect(self.open_selector)
+        self._action.setText("Start recording")
         self._status.label.setText("Capture ready for preview")
         self._metadata.setText(
             f"{result.duration_ms / 1000:.1f}s · "
@@ -319,25 +340,30 @@ class CaptureWorkspace(QWidget):
         self._generate.setText("Cancel reconstruction")
         self._generate.setEnabled(True)
         self._reconstruction_token = self._reconstruction_runner.start(repository, attempt.id)
+        self.reconstruction_started.emit(attempt.id)
 
     def _show_reconstruction_progress(self, update: ProgressUpdate) -> None:
         self._status.label.setText(update.label)
+        self.reconstruction_progress.emit(update)
 
     def _reconstruction_completed(self, attempt_id: str) -> None:
         self._reconstruction_token = None
         self._generate.setText("Generate Standard Shape")
         self._status.label.setText("Model validated and ready for review")
+        self.reconstruction_finished.emit("Model validated and ready for review", True)
         self.reconstruction_ready.emit(attempt_id)
 
     def _reconstruction_cancelled(self, _attempt_id: str) -> None:
         self._reconstruction_token = None
         self._generate.setText("Generate Standard Shape")
         self._status.label.setText("Reconstruction cancelled; project remains usable")
+        self.reconstruction_finished.emit("Reconstruction cancelled; project remains usable", False)
 
     def _reconstruction_failed(self, _attempt_id: str, detail: str) -> None:
         self._reconstruction_token = None
         self._generate.setText("Generate Standard Shape")
         self._status.label.setText(f"Reconstruction failed: {detail}")
+        self.reconstruction_finished.emit(f"Reconstruction failed: {detail}", False)
 
     def discard_capture(self) -> None:
         """Remove only the most recent unassigned capture after the user explicitly requests it."""
@@ -347,12 +373,22 @@ class CaptureWorkspace(QWidget):
         staging_root = self._context.paths.projects_directory / "UnassignedCaptures"
         if capture_root.parent != staging_root:
             raise RuntimeError("Capture discard target is outside the managed staging folder")
-        rmtree(capture_root)
-        self._last_result = None
-        self._discard.hide()
         self._player.stop()
         self._player.setSource(QUrl())
+        try:
+            rmtree(capture_root)
+        except PermissionError:
+            self._status.label.setText("Capture file is still in use; it was kept safely")
+            self._metadata.setText(
+                "Discard skipped because Windows has not released the preview file yet."
+            )
+            return
+        self._last_result = None
+        self._discard.hide()
         self._preview.hide()
         self._metadata.setText("Capture discarded. Select & Record to capture again.")
 
     reconstruction_ready = Signal(str)
+    reconstruction_started = Signal(str)
+    reconstruction_progress = Signal(object)
+    reconstruction_finished = Signal(str, bool)

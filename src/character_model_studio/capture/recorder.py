@@ -126,6 +126,8 @@ class CaptureWorker(QObject):
         frame_count = 0
         started_at = monotonic()
         last_frame: np.ndarray | None = None
+        thumbnail_frame: np.ndarray | None = None
+        thumbnail_score = -1.0
         try:
             source.start(self._region, self._settings.fps)
             encoder = self._encoder_factory(
@@ -140,15 +142,23 @@ class CaptureWorker(QObject):
                     encoder.write(frame)
                     last_frame = frame
                     frame_count += 1
+                    score = _thumbnail_score(frame)
+                    if score > thumbnail_score:
+                        thumbnail_score = score
+                        thumbnail_frame = frame.copy()
                 self.progress.emit(round((monotonic() - started_at) * 1000))
                 next_frame_at += 1 / self._settings.fps
                 sleep(max(0.0, next_frame_at - monotonic()))
             if frame_count == 0 or last_frame is None:
                 raise RuntimeError("No frames were captured; check the display and capture device")
+            if thumbnail_frame is None:
+                raise RuntimeError(
+                    "Captured frames were black; check the game window and selected region"
+                )
             encoder.close()
             encoder = None
             self._thumbnail_path.parent.mkdir(parents=True, exist_ok=True)
-            if not cv2.imwrite(str(self._thumbnail_path), last_frame):
+            if not cv2.imwrite(str(self._thumbnail_path), thumbnail_frame):
                 raise RuntimeError("Could not write capture thumbnail")
             duration_ms = round((monotonic() - started_at) * 1000)
             metadata_path = self._video_path.with_name("capture.json")
@@ -183,3 +193,13 @@ class CaptureWorker(QObject):
             if encoder is not None:
                 encoder.close()
             source.stop()
+
+
+def _thumbnail_score(frame: np.ndarray) -> float:
+    """Prefer a visible, detailed frame so the capture thumbnail is not black."""
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    brightness = float(gray.mean())
+    if brightness < 8.0:
+        return -1.0
+    sharpness = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+    return brightness + sharpness

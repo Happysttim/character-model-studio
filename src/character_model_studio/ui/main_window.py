@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QShowEvent
+from PySide6.QtCore import QPoint, QSize, Qt
+from PySide6.QtGui import QMouseEvent, QShowEvent
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -21,9 +21,46 @@ from character_model_studio.ui.motion import MotionPreferences, fade_in
 from character_model_studio.ui.theme import application_stylesheet
 from character_model_studio.ui.views.capture import CaptureWorkspace
 from character_model_studio.ui.views.diagnostics import DiagnosticsWorkspace
+from character_model_studio.ui.views.processing import ProcessingWorkspace
 from character_model_studio.ui.views.review import ReviewWorkspace
 from character_model_studio.ui.views.workspace import WORKSPACES, WorkspaceView
 from character_model_studio.ui.widgets.controls import StatusIndicator, Toast
+
+
+class WindowTitleBar(QFrame):
+    """Small app-owned title bar for the frameless desktop window."""
+
+    def __init__(self, window: QMainWindow) -> None:
+        super().__init__(window)
+        self._window = window
+        self._drag_origin: QPoint | None = None
+        self.setObjectName("windowTitleBar")
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(16, 0, 8, 0)
+        layout.addWidget(QLabel("Character Model Studio", self))
+        layout.addStretch(1)
+        for text, action in (
+            ("—", window.showMinimized),
+            ("□", window.showMaximized),
+            ("×", window.close),
+        ):
+            button = QPushButton(text, self)
+            button.setObjectName("windowControl")
+            button.clicked.connect(action)
+            layout.addWidget(button)
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._drag_origin = (
+                event.globalPosition().toPoint() - self._window.frameGeometry().topLeft()
+            )
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        if self._drag_origin is not None and event.buttons() & Qt.MouseButton.LeftButton:
+            self._window.move(event.globalPosition().toPoint() - self._drag_origin)
+
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        self._drag_origin = None
 
 
 class MainWindow(QMainWindow):
@@ -38,6 +75,7 @@ class MainWindow(QMainWindow):
         self._backdrop_requested = False
 
         self.setObjectName("mainWindow")
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
         self.setWindowTitle("Character Model Studio")
         self.setMinimumSize(QSize(1180, 760))
         self.setStyleSheet(application_stylesheet())
@@ -69,18 +107,21 @@ class MainWindow(QMainWindow):
     def handle_capture_hotkey(self) -> None:
         """Toggle the capture flow when Windows delivers Ctrl+Alt+S."""
         self.navigate("capture")
-        if self._capture_workspace.is_recording:
-            self._capture_workspace.stop_recording()
-        else:
-            self._capture_workspace.open_selector()
+        self._capture_workspace.handle_hotkey()
 
     def _build_shell(self) -> None:
         root = QWidget(self)
-        root_layout = QHBoxLayout(root)
+        root_layout = QVBoxLayout(root)
         root_layout.setContentsMargins(0, 0, 0, 0)
         root_layout.setSpacing(0)
-        root_layout.addWidget(self._build_navigation())
-        root_layout.addWidget(self._build_workspace(), stretch=1)
+        root_layout.addWidget(WindowTitleBar(self))
+        content = QWidget(root)
+        content_layout = QHBoxLayout(content)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(0)
+        content_layout.addWidget(self._build_navigation())
+        content_layout.addWidget(self._build_workspace(), stretch=1)
+        root_layout.addWidget(content, stretch=1)
         self.setCentralWidget(root)
 
     def _build_navigation(self) -> QFrame:
@@ -136,6 +177,7 @@ class MainWindow(QMainWindow):
         outer_layout.addWidget(self._page_header)
 
         self._workspace_stack = QStackedWidget(workspace)
+        self._processing_workspace = ProcessingWorkspace(self._workspace_stack)
         for definition in WORKSPACES:
             view: QWidget
             if definition.key == "review":
@@ -146,6 +188,8 @@ class MainWindow(QMainWindow):
                 view = CaptureWorkspace(self._context, self._workspace_stack)
                 self._capture_workspace = view
                 view.reconstruction_ready.connect(self._open_review_attempt)
+            elif definition.key == "processing":
+                view = self._processing_workspace
             elif definition.key == "diagnostics":
                 view = DiagnosticsWorkspace(self._context, self._workspace_stack)
                 view.reduce_motion.toggled.connect(self._set_reduce_motion)
@@ -155,6 +199,11 @@ class MainWindow(QMainWindow):
             self._workspace_indexes[definition.key] = index
             if isinstance(view, WorkspaceView) and view.reduce_motion is not None:
                 view.reduce_motion.toggled.connect(self._set_reduce_motion)
+        self._capture_workspace.reconstruction_started.connect(self._start_processing)
+        self._capture_workspace.reconstruction_progress.connect(
+            self._processing_workspace.update_progress
+        )
+        self._capture_workspace.reconstruction_finished.connect(self._processing_workspace.finish)
         outer_layout.addWidget(self._workspace_stack, stretch=1)
 
         self._toast = Toast(self._motion_preferences, workspace)
@@ -164,6 +213,10 @@ class MainWindow(QMainWindow):
     def _open_review_attempt(self, attempt_id: str) -> None:
         self._review_workspace.load_attempt(attempt_id)
         self.navigate("review")
+
+    def _start_processing(self, attempt_id: str) -> None:
+        self._processing_workspace.begin(attempt_id)
+        self.navigate("processing")
 
     def _set_reduce_motion(self, enabled: bool) -> None:
         self._motion_preferences.reduce_motion = enabled
