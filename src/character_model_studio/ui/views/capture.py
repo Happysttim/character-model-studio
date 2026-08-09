@@ -37,6 +37,7 @@ class RegionSelectionOverlay(QWidget):
         self._screen = screen
         self._origin: QPoint | None = None
         self._selection = QRect()
+        self._confirmed = False
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
             | Qt.WindowType.Tool
@@ -47,6 +48,8 @@ class RegionSelectionOverlay(QWidget):
         self.setGeometry(screen.geometry())
 
     def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        if self._confirmed:
+            return
         self._origin = event.position().toPoint()
         self._selection = QRect(self._origin, self._origin)
         self.update()
@@ -58,6 +61,7 @@ class RegionSelectionOverlay(QWidget):
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:  # noqa: N802
         self.mouseMoveEvent(event)
+        self._confirm()
 
     def keyPressEvent(self, event: QKeyEvent) -> None:  # noqa: N802
         if event.key() == Qt.Key.Key_Escape:
@@ -82,7 +86,7 @@ class RegionSelectionOverlay(QWidget):
             )
 
     def _confirm(self) -> None:
-        if self._selection.isNull():
+        if self._confirmed or self._selection.isNull():
             return
         geometry = self._screen.geometry()
         selection = LogicalRect(
@@ -100,9 +104,13 @@ class RegionSelectionOverlay(QWidget):
             self._screen.devicePixelRatio(),
         )
         try:
+            self._confirmed = True
+            self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
             self.selected.emit(to_physical_region(selection, monitor))
             self.close()
         except ValueError:
+            self._confirmed = False
+            self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
             self.update()
 
 
@@ -160,7 +168,8 @@ class CaptureWorkspace(QWidget):
         panel = GlassPanel("secondary", self)
         panel_layout = QVBoxLayout(panel)
         guidance = QLabel(
-            "Select one monitor region, then record at 30 FPS. Ctrl+Alt+S opens or stops capture."
+            "Drag once to select a region; recording starts when the mouse is released. "
+            "Ctrl+Alt+S stops an active recording."
         )
         guidance.setWordWrap(True)
         panel_layout.addWidget(guidance)
@@ -199,6 +208,7 @@ class CaptureWorkspace(QWidget):
         layout.addStretch(1)
         self._session.completed.connect(self._capture_completed)
         self._session.failed.connect(self._capture_failed)
+        self._session.elapsed_changed.connect(self._show_capture_elapsed)
         self._last_result: CaptureResult | None = None
         self._capture_id: str | None = None
         self._reconstruction_runner = RealStandardWorkflowTaskRunner()
@@ -234,6 +244,7 @@ class CaptureWorkspace(QWidget):
         self._action.clicked.disconnect()
         self._action.clicked.connect(self.stop_recording)
         self._status.label.setText("Recording locally")
+        self._metadata.setText("● RECORDING — waiting for the first captured frame…")
         self._indicator.start(region)
         self._session.start(region, capture_root / "capture.mp4", capture_root / "thumbnail.jpg")
 
@@ -241,6 +252,16 @@ class CaptureWorkspace(QWidget):
         """Request recording finalization without blocking the UI."""
         self._session.stop()
         self._status.label.setText("Finalizing MP4 and thumbnail")
+        self._metadata.setText("Stopping recording and writing the local MP4…")
+
+    def _show_capture_elapsed(self, elapsed_ms: int) -> None:
+        """Show proof that the capture worker is receiving frames and encoding locally."""
+        seconds = max(0, elapsed_ms // 1000)
+        self._status.label.setText("● Recording locally")
+        self._metadata.setText(
+            f"● RECORDING {seconds // 60:02}:{seconds % 60:02} — "
+            "Ctrl+Alt+S or Stop recording ends capture"
+        )
 
     def _capture_completed(self, result: CaptureResult) -> None:
         self._indicator.stop()
