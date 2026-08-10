@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QLabel, QPlainTextEdit, QProgressBar, QVBoxLayout, QWidget
 
@@ -36,7 +38,7 @@ class ProcessingWorkspace(QWidget):
     def begin(self, attempt_id: str) -> None:
         self._status.setText("Preparing local Standard Shape reconstruction")
         self._progress.setRange(0, 0)
-        self._log.setPlainText(f"Attempt {attempt_id}: queued locally")
+        self._log.setPlainText(f"[{_timestamp()}] Attempt {attempt_id}: queued locally")
 
     def update_progress(self, update: ProgressUpdate) -> None:
         self._status.setText(update.label)
@@ -45,10 +47,15 @@ class ProcessingWorkspace(QWidget):
         else:
             self._progress.setRange(0, 100)
             self._progress.setValue(update.percent)
-        self._log.appendPlainText(f"[{update.stage}] {update.label}")
+        self._log.appendPlainText(f"[{_timestamp()}] [{update.stage}] {update.label}")
 
     def finish(self, message: str, success: bool) -> None:
         self._progress.setRange(0, 100)
         self._progress.setValue(100 if success else 0)
         self._status.setText(message)
-        self._log.appendPlainText(message)
+        self._log.appendPlainText(f"[{_timestamp()}] {message}")
+
+
+def _timestamp() -> str:
+    """Return a user-visible local event timestamp without persisting personal data."""
+    return datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %z")
