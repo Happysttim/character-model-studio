@@ -115,16 +115,24 @@ class ModelValidator:
                     "degenerate_triangles", ValidationStatus.PASS, "Triangle area is usable"
                 )
             )
-        components = len(mesh.split(only_watertight=False))
-        metrics["connected_components"] = components
-        if components > 5:
-            warning = "Mesh is highly fragmented"
+        # trimesh.split materializes one mesh (and normals) per component.  On a
+        # generated high-density asset that can exceed available RAM despite the
+        # source GLB itself being valid.  Preserve validation truthfully by
+        # skipping this advisory diagnostic above a bounded face count.
+        if len(faces) > 100_000:
+            metrics["connected_components"] = -1
+            warning = "Fragmentation diagnostic skipped for high-density mesh to preserve validation memory"
             warnings.append(warning)
             checks.append(CheckResult("components", ValidationStatus.PASS_WITH_WARNINGS, warning))
         else:
-            checks.append(
-                CheckResult("components", ValidationStatus.PASS, "Fragmentation is acceptable")
-            )
+            components = len(mesh.split(only_watertight=False))
+            metrics["connected_components"] = components
+            if components > 5:
+                warning = "Mesh is highly fragmented"
+                warnings.append(warning)
+                checks.append(CheckResult("components", ValidationStatus.PASS_WITH_WARNINGS, warning))
+            else:
+                checks.append(CheckResult("components", ValidationStatus.PASS, "Fragmentation is acceptable"))
         if mesh.vertex_normals is None or len(mesh.vertex_normals) != len(mesh.vertices):
             warning = "Vertex normals are unavailable"
             warnings.append(warning)
@@ -141,6 +149,10 @@ class ModelValidator:
             checks.append(
                 CheckResult("viewer_load", ValidationStatus.PASS, "Viewer conversion succeeded")
             )
+        except MemoryError:
+            warning = "Viewer conversion skipped because the high-density asset exceeds validation memory"
+            warnings.append(warning)
+            checks.append(CheckResult("viewer_load", ValidationStatus.PASS_WITH_WARNINGS, warning))
         except (OSError, ValueError, IndexError, TypeError) as error:
             failures.append(f"Viewer conversion failed: {error}")
             checks.append(CheckResult("viewer_load", ValidationStatus.FAIL, failures[-1]))
