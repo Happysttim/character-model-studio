@@ -80,7 +80,3 @@ powershell -ExecutionPolicy Bypass -File .\scripts\cms.ps1 run
 3. `Generate Standard Shape` 또는 `Generate Textured Model`을 실행합니다.
 4. Processing에서 단계와 로그를 확인합니다.
 5. Review에서 GLB를 확인한 뒤 Accept, Reject 또는 Regenerate를 선택합니다.
-
-## 개발 문서 우선순위
-
-구현·수정 전에는 `AGENTS.md`, `DEPENDENCIES.md`, 관련 `SPECS/*.md`, 현재 `PHASES/*.md`, `HARNESS.md` 순으로 확인합니다. 충돌 시 `AGENTS.md`의 우선순위를 따릅니다.
