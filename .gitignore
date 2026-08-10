@@ -7,8 +7,12 @@ dist/
 build/
 *.spec
 *.log
+*-report.md
 .local/
 models/
 weights/
 Projects/
 PHASES/
+external/
+fixes/
+download-model-to-project-cache.ps1
