@@ -255,6 +255,8 @@ class CaptureWorkspace(QWidget):
         self._reconstruction_runner.failed.connect(self._reconstruction_failed)
         self._reconstruction_token: CancellationToken | None = None
         self._selected_provider = "Hunyuan3D 2.0"
+        self._import_thread: QThread | None = None
+        self._import_worker: _ImportWorker | None = None
 
     @property
     def is_recording(self) -> bool:
@@ -304,11 +306,20 @@ class CaptureWorkspace(QWidget):
         root = self._context.paths.projects_directory / "UnassignedCaptures" / uuid.uuid4().hex
         destination = root / f"imported{video_path.suffix.lower() or '.mp4'}"
         thumbnail = root / "thumbnail.jpg"
+        if self._import_thread is not None:
+            self._status.label.setText("A video import is already running")
+            return
         thread = QThread(self); worker = _ImportWorker(video_path, destination, thumbnail); worker.moveToThread(thread)
         thread.started.connect(worker.run); worker.completed.connect(self._capture_completed); worker.failed.connect(self._capture_failed)
         worker.completed.connect(thread.quit); worker.failed.connect(thread.quit); thread.finished.connect(worker.deleteLater)
-        thread.finished.connect(thread.deleteLater); self._import_thread = thread; self._status.label.setText("Importing local video")
+        thread.finished.connect(thread.deleteLater); thread.finished.connect(self._finish_import)
+        self._import_thread = thread; self._import_worker = worker; self._status.label.setText("Importing local video")
         thread.start()
+
+    def _finish_import(self) -> None:
+        """Release the retained import task only after its queued Qt signals are delivered."""
+        self._import_worker = None
+        self._import_thread = None
 
     def _set_capture_region(self, region: PhysicalRegion) -> None:
         """Lock the selected bounds until the user explicitly starts capture."""
