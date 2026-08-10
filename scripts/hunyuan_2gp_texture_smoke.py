@@ -66,7 +66,9 @@ def main() -> None:
     os.environ["HY3DGEN_MODELS"] = str(args.model_cache.resolve())
     os.environ["HF_HUB_OFFLINE"] = "1"
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
-    os.environ["HF_MODULES_CACHE"] = str((args.model_cache / "modules").resolve())
+    # A versioned generated-module cache prevents Diffusers from reusing a custom
+    # HunyuanPaint class produced by an incompatible Transformers/Diffusers lane.
+    os.environ["HF_MODULES_CACHE"] = str((args.model_cache / "modules-transformers-4.49").resolve())
 
     import torch
 

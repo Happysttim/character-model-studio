@@ -99,7 +99,7 @@ def _configure_local_runtime(source_directory: Path, model_cache: Path) -> None:
     os.environ["HY3DGEN_MODELS"] = str(model_cache.resolve())
     os.environ["HF_HUB_OFFLINE"] = "1"
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
-    os.environ["HF_MODULES_CACHE"] = str((model_cache / "modules").resolve())
+    os.environ["HF_MODULES_CACHE"] = str((model_cache / "modules-transformers-4.49").resolve())
     if hasattr(os, "add_dll_directory"):
         os.add_dll_directory(str(Path(torch.__file__).parent / "lib"))
 
