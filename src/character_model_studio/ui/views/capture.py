@@ -175,6 +175,7 @@ class CaptureWorkspace(QWidget):
         self._standard.setChecked(True)
         self._sf3d = QRadioButton("Textured Experimental — Stable Fast 3D", panel)
         high_quality = QRadioButton("High Quality — Hunyuan3D 2.1 (Optional)", panel)
+        self._hunyuan2gp = QRadioButton("Textured Experimental - Hunyuan3D-2GP (Multi-view)", panel)
         runtime = context.runtime
         if runtime is not None:
             self._standard.setToolTip(
@@ -186,9 +187,14 @@ class CaptureWorkspace(QWidget):
             self._sf3d.setEnabled(runtime.sf3d.status.value == "READY")
             self._sf3d.setToolTip(runtime.sf3d.reason)
         self._standard.toggled.connect(self._select_standard_provider)
+        self._hunyuan2gp.setEnabled(runtime is not None and runtime.hunyuan2gp.status.value == "READY")
+        if runtime is not None:
+            self._hunyuan2gp.setToolTip(runtime.hunyuan2gp.reason)
+        self._hunyuan2gp.toggled.connect(self._select_hunyuan2gp_provider)
         self._sf3d.toggled.connect(self._select_sf3d_provider)
         panel_layout.addWidget(self._standard)
         panel_layout.addWidget(self._sf3d)
+        panel_layout.addWidget(self._hunyuan2gp)
         panel_layout.addWidget(high_quality)
         self._action = PrimaryButton("Select capture region", panel)
         self._action.clicked.connect(self._handle_capture_action)
@@ -360,16 +366,16 @@ class CaptureWorkspace(QWidget):
             return
         attempt = repository.create_attempt(
             self._capture_id,
-            "experimental_textured" if self._selected_provider == "Stable Fast 3D" else "standard",
+            "experimental_textured" if self._selected_provider in {"Stable Fast 3D", "Hunyuan3D-2GP"} else "standard",
             provider=self._selected_provider,
             provider_version=(
                 "upstream-local-experimental"
-                if self._selected_provider == "Stable Fast 3D"
+                if self._selected_provider in {"Stable Fast 3D", "Hunyuan3D-2GP"}
                 else "2.0.2"
             ),
             parameters={
                 "texture_stage": "generated"
-                if self._selected_provider == "Stable Fast 3D"
+                if self._selected_provider in {"Stable Fast 3D", "Hunyuan3D-2GP"}
                 else "disabled",
                 "source": "windows_capture",
             },
@@ -422,17 +428,17 @@ class CaptureWorkspace(QWidget):
         runtime = self._context.runtime
         if runtime is None or runtime.segmentation.status.value != "READY":
             return False
-        return (
-            runtime.sf3d.status.value == "READY"
-            if self._selected_provider == "Stable Fast 3D"
-            else runtime.standard.status.value == "READY"
-        )
+        if self._selected_provider == "Stable Fast 3D":
+            return runtime.sf3d.status.value == "READY"
+        if self._selected_provider == "Hunyuan3D-2GP":
+            return runtime.hunyuan2gp.status.value == "READY"
+        return runtime.standard.status.value == "READY"
 
     def _workflow_unavailable_reason(self) -> str:
         runtime = self._context.runtime
         if runtime is None:
             return "Runtime readiness is unavailable"
-        provider = runtime.sf3d if self._selected_provider == "Stable Fast 3D" else runtime.standard
+        provider = runtime.sf3d if self._selected_provider == "Stable Fast 3D" else runtime.hunyuan2gp if self._selected_provider == "Hunyuan3D-2GP" else runtime.standard
         if provider.status.value != "READY":
             return f"{provider.provider} is unavailable: {provider.reason}"
         return f"Background isolation is unavailable: {runtime.segmentation.reason}"
@@ -454,10 +460,15 @@ class CaptureWorkspace(QWidget):
             self._selected_provider = "Stable Fast 3D"
             self._restore_generate_label()
 
+    def _select_hunyuan2gp_provider(self, checked: bool) -> None:
+        if checked:
+            self._selected_provider = "Hunyuan3D-2GP"
+            self._restore_generate_label()
+
     def _restore_generate_label(self) -> None:
         self._generate.setText(
             "Generate Textured Model"
-            if self._selected_provider == "Stable Fast 3D"
+            if self._selected_provider in {"Stable Fast 3D", "Hunyuan3D-2GP"}
             else "Generate Standard Shape"
         )
         if self._last_result is not None:

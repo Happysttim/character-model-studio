@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import importlib.metadata
 import os
 from dataclasses import dataclass
 from enum import StrEnum
@@ -15,6 +16,7 @@ class Capability(StrEnum):
     STANDARD_SHAPE = "STANDARD_SHAPE"
     STANDARD_TEXTURED_PIPELINE = "STANDARD_TEXTURED_PIPELINE"
     EXPERIMENTAL_SF3D_TEXTURED_PIPELINE = "EXPERIMENTAL_SF3D_TEXTURED_PIPELINE"
+    EXPERIMENTAL_HUNYUAN2GP_TEXTURED_PIPELINE = "EXPERIMENTAL_HUNYUAN2GP_TEXTURED_PIPELINE"
     HIGH_QUALITY_SHAPE = "HIGH_QUALITY_SHAPE"
     HIGH_QUALITY_TEXTURE = "HIGH_QUALITY_TEXTURE"
     HIGH_QUALITY_COMBINED_PIPELINE = "HIGH_QUALITY_COMBINED_PIPELINE"
@@ -73,6 +75,7 @@ class RuntimeCapabilities:
     standard: ProviderReadiness
     segmentation: ProviderReadiness
     sf3d: ProviderReadiness
+    hunyuan2gp: ProviderReadiness
     high_quality: ProviderReadiness
     rigging: ProviderReadiness
 
@@ -125,11 +128,16 @@ def probe_runtime() -> RuntimeCapabilities:
     standard = _standard_provider_readiness(capability_set)
     segmentation = _segmentation_provider_readiness(capability_set)
     sf3d = _sf3d_provider_readiness(gpu, capability_set)
+    hunyuan2gp = _hunyuan2gp_provider_readiness(gpu)
     if segmentation.status is ReadinessStatus.READY:
         capability_set = frozenset({*capability_set, Capability.CHARACTER_SEGMENTATION})
     if sf3d.status is ReadinessStatus.READY:
         capability_set = frozenset(
             {*capability_set, Capability.EXPERIMENTAL_SF3D_TEXTURED_PIPELINE}
+        )
+    if hunyuan2gp.status is ReadinessStatus.READY:
+        capability_set = frozenset(
+            {*capability_set, Capability.EXPERIMENTAL_HUNYUAN2GP_TEXTURED_PIPELINE}
         )
     return RuntimeCapabilities(
         gpu,
@@ -138,6 +146,7 @@ def probe_runtime() -> RuntimeCapabilities:
         standard,
         segmentation,
         sf3d,
+        hunyuan2gp,
         _provider_readiness(
             "Hunyuan3D 2.1", "hunyuan3d_2_1", Capability.HIGH_QUALITY_SHAPE, capability_set
         ),
@@ -381,3 +390,46 @@ def _sf3d_paths() -> tuple[Path, Path, Path]:
             )
         ),
     )
+
+
+def _hunyuan2gp_provider_readiness(gpu: GpuSnapshot) -> ProviderReadiness:
+    """Verify the isolated experimental runtime without importing or loading weights.
+
+    Hunyuan3D-2GP upstream pins Transformers 4.49.  The desktop application's
+    shared runtime is intentionally not downgraded during a readiness probe:
+    doing that could destabilize the existing provider lanes.  The selection is
+    therefore disabled until a compatible, tested runtime is configured.
+    """
+    name = "Hunyuan3D-2GP (Experimental Multi-view)"
+    if not gpu.cuda_available:
+        return ProviderReadiness(name, ReadinessStatus.CUDA_UNAVAILABLE, "CUDA is unavailable", False, False)
+    from character_model_studio.reconstruction.hunyuan2gp_paths import resolve_hunyuan2gp_paths
+
+    paths = resolve_hunyuan2gp_paths()
+    required = (
+        paths.source_directory / "hy3dgen" / "shapegen" / "__init__.py",
+        paths.shape_directory / "config.yaml",
+        paths.shape_directory / "model.fp16.safetensors",
+        paths.delight_directory / "model_index.json",
+        paths.paint_directory / "model_index.json",
+        paths.paint_directory / "unet" / "diffusion_pytorch_model.bin",
+    )
+    missing = [str(path.relative_to(paths.model_cache)) if path.is_relative_to(paths.model_cache) else path.name for path in required if not path.is_file()]
+    if missing:
+        return ProviderReadiness(name, ReadinessStatus.NOT_INSTALLED, "Missing local 2GP artifacts: " + ", ".join(missing), False, True)
+    try:
+        transformers_version = importlib.metadata.version("transformers")
+    except importlib.metadata.PackageNotFoundError:
+        return ProviderReadiness(name, ReadinessStatus.NOT_INSTALLED, "Transformers is not installed", False, True)
+    if transformers_version != "4.49.0":
+        return ProviderReadiness(
+            name,
+            ReadinessStatus.PROVIDER_RUNTIME_INCOMPATIBLE,
+            f"Hunyuan3D-2GP requires Transformers 4.49.0; active runtime has {transformers_version}. No dependency was changed automatically.",
+            True,
+            True,
+        )
+    extensions = all(importlib.util.find_spec(module) is not None for module in ("mesh_processor", "custom_rasterizer_kernel"))
+    if not extensions:
+        return ProviderReadiness(name, ReadinessStatus.NOT_INSTALLED, "Hunyuan3D-2GP native extensions are not installed in the active Python runtime", True, True)
+    return ProviderReadiness(name, ReadinessStatus.READY, "Local multi-view Shape, Delight, Paint and native extensions are ready", True, True)

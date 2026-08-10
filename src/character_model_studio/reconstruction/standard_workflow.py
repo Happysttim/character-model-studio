@@ -20,6 +20,7 @@ from character_model_studio.reconstruction.preprocessing import (
     with_output_path,
 )
 from character_model_studio.reconstruction.providers.hunyuan2 import Hunyuan3D20Provider
+from character_model_studio.reconstruction.providers.hunyuan2gp import Hunyuan3D2GPProvider
 from character_model_studio.reconstruction.providers.rembg_segmentation import (
     RembgAnimeSegmentationProvider,
 )
@@ -94,6 +95,21 @@ class StandardShapeWorkflow:
             selection = with_output_path(selected_candidate, input_path)
             segmentation.unload()
 
+            provider_inputs = [isolated_input_path]
+            multiview_selection: list[dict[str, object]] = []
+            if provider.name == Hunyuan3D2GPProvider.name:
+                # Chronological sectors preserve a captured turntable's distinct views.  This is
+                # deliberately provenance-visible rather than pretending image direction is known.
+                provider_inputs = []
+                view_directory = repository.attempt_artifact_path(attempt_id, "inputs/views")
+                for label, position in zip(("front", "left", "back", "right"), (0, 3, 6, 9), strict=True):
+                    chosen = min(position, len(candidates) - 1)
+                    view_path = view_directory / f"{label}.png"
+                    view_path.parent.mkdir(parents=True, exist_ok=True)
+                    copy2(candidate_isolations[chosen], view_path)
+                    provider_inputs.append(view_path)
+                    multiview_selection.append({"label": label, "source_frame_index": candidates[chosen].source_frame_index, "source_timestamp_ms": candidates[chosen].source_timestamp_ms, "output_path": repository.as_project_relative_path(view_path)})
+
             device = torch.device("cuda:0")
             torch.cuda.empty_cache()
             torch.cuda.reset_peak_memory_stats(device)
@@ -107,7 +123,7 @@ class StandardShapeWorkflow:
                 ProgressUpdate(
                     "shape",
                     "Generating textured 3D asset"
-                    if provider.name == StableFast3DProvider.name
+                    if provider.name in {StableFast3DProvider.name, Hunyuan3D2GPProvider.name}
                     else "Generating untextured 3D shape",
                     None,
                     True,
@@ -115,7 +131,7 @@ class StandardShapeWorkflow:
             )
             output_path = repository.attempt_artifact_path(attempt_id, "model.glb")
             provider.generate_shape(
-                [isolated_input_path], output_path, token, _shape_progress(progress, provider.name)
+                provider_inputs, output_path, token, _shape_progress(progress, provider.name)
             )
             torch.cuda.synchronize(device)
 
@@ -162,9 +178,11 @@ class StandardShapeWorkflow:
                 "face_count": validation.metrics["face_count"],
                 "validation_status": validation.overall_status.value,
                 "texture_stage": "generated"
-                if provider.name == StableFast3DProvider.name
+                if provider.name in {StableFast3DProvider.name, Hunyuan3D2GPProvider.name}
                 else "not_requested",
             }
+            if multiview_selection:
+                metrics["multiview_selection"] = multiview_selection
             repository.persist_attempt_metrics(attempt_id, metrics)
             repository.write_attempt_metadata(attempt_id, metrics)
             repository.transition_attempt(attempt_id, AttemptStatus.READY_FOR_REVIEW)
@@ -203,11 +221,13 @@ def _is_cancelled(token: CancellationToken) -> bool:
     return token.is_cancelled
 
 
-def _provider_for_attempt(provider_name: str) -> Hunyuan3D20Provider | StableFast3DProvider:
+def _provider_for_attempt(provider_name: str) -> Hunyuan3D20Provider | StableFast3DProvider | Hunyuan3D2GPProvider:
     if provider_name == StableFast3DProvider.name:
         return StableFast3DProvider()
     if provider_name == Hunyuan3D20Provider.name:
         return Hunyuan3D20Provider()
+    if provider_name == Hunyuan3D2GPProvider.name:
+        return Hunyuan3D2GPProvider()
     raise ValueError(f"Unsupported reconstruction provider: {provider_name}")
 
 
@@ -224,6 +244,11 @@ def _shape_progress(
     def report(stage: str, completed: int, total: int) -> None:
         if provider_name == StableFast3DProvider.name:
             label = "SF3D geometry" if stage == "sf3d_geometry" else "SF3D texture baking"
+            percent = 45 + round(40 * completed / max(total, 1))
+            publish(ProgressUpdate(stage, f"{label} {completed}/{total}", percent, True))
+            return
+        if provider_name == Hunyuan3D2GPProvider.name:
+            label = "Hunyuan3D-2GP Shape" if stage == "hunyuan2gp_shape" else "Hunyuan3D-2GP Texture"
             percent = 45 + round(40 * completed / max(total, 1))
             publish(ProgressUpdate(stage, f"{label} {completed}/{total}", percent, True))
             return
