@@ -5,16 +5,17 @@ from __future__ import annotations
 import uuid
 from shutil import rmtree
 
-from PySide6.QtCore import QPoint, QRect, Qt, QTimer, QUrl, Signal
+from PySide6.QtCore import QObject, QPoint, QRect, Qt, QThread, QTimer, QUrl, Signal, Slot
 from PySide6.QtGui import QColor, QKeyEvent, QMouseEvent, QPainter, QPen, QPixmap, QScreen
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
-from PySide6.QtWidgets import QLabel, QRadioButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFileDialog, QLabel, QRadioButton, QVBoxLayout, QWidget
 
 from character_model_studio.app.bootstrap import ApplicationContext
 from character_model_studio.capture.models import CaptureResult, PhysicalRegion
 from character_model_studio.capture.region import LogicalRect, MonitorGeometry, to_physical_region
 from character_model_studio.capture.session import CaptureSession
+from character_model_studio.capture.importer import import_video
 from character_model_studio.common.cancellation import CancellationToken
 from character_model_studio.domain.models import ProgressUpdate
 from character_model_studio.reconstruction.task_runner import RealStandardWorkflowTaskRunner
@@ -155,6 +156,16 @@ class RecordingIndicator(QWidget):
         self._label.setText(f"● REC {self._seconds // 60:02}:{self._seconds % 60:02}")
 
 
+class _ImportWorker(QObject):
+    completed = Signal(object)
+    failed = Signal(str)
+    def __init__(self, source, destination, thumbnail):
+        super().__init__(); self.source=source; self.destination=destination; self.thumbnail=thumbnail
+    @Slot()
+    def run(self):
+        try: self.completed.emit(import_video(self.source,self.destination,self.thumbnail))
+        except (OSError, ValueError) as error: self.failed.emit(str(error))
+
 class CaptureWorkspace(QWidget):
     """Capture-ready surface that keeps selection/recording outside the main UI."""
 
@@ -199,6 +210,9 @@ class CaptureWorkspace(QWidget):
         self._action = PrimaryButton("Select capture region", panel)
         self._action.clicked.connect(self._handle_capture_action)
         panel_layout.addWidget(self._action, alignment=Qt.AlignmentFlag.AlignLeft)
+        self._import_video = SecondaryButton("Import existing video", panel)
+        self._import_video.clicked.connect(self._import_existing_video)
+        panel_layout.addWidget(self._import_video, alignment=Qt.AlignmentFlag.AlignLeft)
         self._status = StatusIndicator("Ready for one-monitor capture", "ready", panel)
         panel_layout.addWidget(self._status, alignment=Qt.AlignmentFlag.AlignLeft)
         self._metadata = QLabel("No capture recorded.", panel)
@@ -276,6 +290,25 @@ class CaptureWorkspace(QWidget):
             self.open_selector()
         else:
             self.start_recording(self._selected_region)
+
+    def _import_existing_video(self) -> None:
+        """Bring a user-selected local video into the same capture/reconstruction workflow."""
+        source, _ = QFileDialog.getOpenFileName(
+            self, "Import character video", "", "Video files (*.mp4 *.mov *.mkv *.avi)"
+        )
+        if not source:
+            return
+        from pathlib import Path
+        video_path = Path(source)
+        import uuid
+        root = self._context.paths.projects_directory / "UnassignedCaptures" / uuid.uuid4().hex
+        destination = root / f"imported{video_path.suffix.lower() or '.mp4'}"
+        thumbnail = root / "thumbnail.jpg"
+        thread = QThread(self); worker = _ImportWorker(video_path, destination, thumbnail); worker.moveToThread(thread)
+        thread.started.connect(worker.run); worker.completed.connect(self._capture_completed); worker.failed.connect(self._capture_failed)
+        worker.completed.connect(thread.quit); worker.failed.connect(thread.quit); thread.finished.connect(worker.deleteLater)
+        thread.finished.connect(thread.deleteLater); self._import_thread = thread; self._status.label.setText("Importing local video")
+        thread.start()
 
     def _set_capture_region(self, region: PhysicalRegion) -> None:
         """Lock the selected bounds until the user explicitly starts capture."""
