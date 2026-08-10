@@ -86,7 +86,7 @@ class Hunyuan3D2GPProvider(ReconstructionProvider):
         if progress:
             progress("hunyuan2gp_shape", 1, 2)
             progress("hunyuan2gp_texture", 0, 2)
-        _texture_local_mesh(shape_path, inputs[0], output_path)
+        _texture_local_mesh(shape_path, inputs[0], output_path, progress)
         if progress:
             progress("hunyuan2gp_texture", 2, 2)
         return output_path
@@ -104,19 +104,33 @@ def _configure_local_runtime(source_directory: Path, model_cache: Path) -> None:
         os.add_dll_directory(str(Path(torch.__file__).parent / "lib"))
 
 
-def _texture_local_mesh(shape_path: Path, reference: Path, output_path: Path) -> None:
+def _texture_local_mesh(
+    shape_path: Path,
+    reference: Path,
+    output_path: Path,
+    progress: Callable[[str, int, int], None] | None,
+) -> None:
     """Run Delight and Paint one at a time, never retaining both CUDA models together."""
     paths = resolve_hunyuan2gp_paths()
     _configure_local_runtime(paths.source_directory, paths.model_cache)
     import trimesh
     from PIL import Image
     from hy3dgen.texgen import Hunyuan3DPaintPipeline  # type: ignore[import-not-found]
+    from hy3dgen.texgen.differentiable_renderer.mesh_render import MeshRender  # type: ignore[import-not-found]
     from hy3dgen.texgen.utils.uv_warp_utils import mesh_uv_wrap  # type: ignore[import-not-found]
 
     pipeline = Hunyuan3DPaintPipeline.from_pretrained(str(paths.delight_directory.parent))
+    # 2048px baking monopolizes a 12GB lane and can make Windows appear unresponsive.
+    # The app's experimental default is deliberately 1024px; users still receive a
+    # textured GLB and heavyweight models remain sequentially resident on CUDA.
+    pipeline.config.render_size = 1024
+    pipeline.config.texture_size = 1024
+    pipeline.render = MeshRender(default_resolution=1024, texture_size=1024)
     delight, paint = pipeline.models["delight_model"], pipeline.models["multiview_model"]
     delight.device = paint.device = "cuda:0"
     delight.pipeline.to("cuda:0")
+    if progress:
+        progress("hunyuan2gp_texture", 1, 4)
     _require_cuda_parameters("Delight", delight.pipeline)
     image_prompt = delight(pipeline.recenter_image(Image.open(reference).convert("RGBA")))
     delight.pipeline.to("cpu")
@@ -128,15 +142,21 @@ def _texture_local_mesh(shape_path: Path, reference: Path, output_path: Path) ->
     position_maps = pipeline.render_position_multiview(elevations, azimuths)
     camera_info = [(((a // 30) + 9) % 12) // {-20: 1, 0: 1, 20: 1, -90: 3, 90: 3}[e] + {-20: 0, 0: 12, 20: 24, -90: 36, 90: 40}[e] for a, e in zip(azimuths, elevations, strict=True)]
     paint.pipeline.to("cuda:0")
+    if progress:
+        progress("hunyuan2gp_texture", 2, 4)
     _require_cuda_parameters("Paint", paint.pipeline)
     multiviews = paint(image_prompt, normal_maps + position_maps, camera_info)
     paint.pipeline.to("cpu")
     torch.cuda.empty_cache()
     size = pipeline.config.render_size
+    if progress:
+        progress("hunyuan2gp_texture", 3, 4)
     texture, mask = pipeline.bake_from_multiview([image.resize((size, size)) for image in multiviews], elevations, azimuths, weights, method=pipeline.config.merge_method)
     pipeline.render.set_texture(pipeline.texture_inpaint(texture, (mask.squeeze(-1).cpu().numpy() * 255).astype("uint8")))
     output_path.parent.mkdir(parents=True, exist_ok=True)
     pipeline.render.save_mesh().export(output_path)
+    if progress:
+        progress("hunyuan2gp_texture", 4, 4)
     del pipeline
     gc.collect()
     torch.cuda.empty_cache()
