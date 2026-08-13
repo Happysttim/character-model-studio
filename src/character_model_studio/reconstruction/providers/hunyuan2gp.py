@@ -42,7 +42,9 @@ class Hunyuan3D2GPProvider(ReconstructionProvider):
             raise RuntimeError("CUDA is required; Hunyuan3D-2GP will not use a CPU fallback")
         paths = resolve_hunyuan2gp_paths()
         _configure_local_runtime(paths.source_directory, paths.model_cache)
-        from hy3dgen.shapegen import Hunyuan3DDiTFlowMatchingPipeline  # type: ignore[import-not-found]
+        from hy3dgen.shapegen import (
+            Hunyuan3DDiTFlowMatchingPipeline,  # type: ignore[import-not-found]
+        )
 
         self._shape_pipeline = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
             str(paths.shape_directory), variant="fp16", device="cuda:0"

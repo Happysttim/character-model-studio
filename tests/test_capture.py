@@ -8,8 +8,8 @@ import av
 import numpy as np
 import pytest
 
-from character_model_studio.capture.models import CaptureSettings, PhysicalRegion
 from character_model_studio.capture.importer import import_video
+from character_model_studio.capture.models import CaptureSettings, PhysicalRegion
 from character_model_studio.capture.recorder import FrameSource, PyAvH264Encoder, VideoEncoder
 from character_model_studio.capture.region import LogicalRect, MonitorGeometry, to_physical_region
 from character_model_studio.capture.session import CaptureSession

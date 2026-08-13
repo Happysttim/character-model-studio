@@ -13,10 +13,10 @@ from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import QFileDialog, QLabel, QRadioButton, QVBoxLayout, QWidget
 
 from character_model_studio.app.bootstrap import ApplicationContext
+from character_model_studio.capture.importer import import_video
 from character_model_studio.capture.models import CaptureResult, PhysicalRegion
 from character_model_studio.capture.region import LogicalRect, MonitorGeometry, to_physical_region
 from character_model_studio.capture.session import CaptureSession
-from character_model_studio.capture.importer import import_video
 from character_model_studio.common.cancellation import CancellationToken
 from character_model_studio.domain.models import ProgressUpdate
 from character_model_studio.reconstruction.task_runner import RealStandardWorkflowTaskRunner

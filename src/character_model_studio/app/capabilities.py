@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import importlib.util
 import importlib.metadata
+import importlib.util
 import os
 from dataclasses import dataclass
 from enum import StrEnum
@@ -441,7 +441,9 @@ def _hunyuan2gp_provider_readiness(gpu: GpuSnapshot) -> ProviderReadiness:
         return ProviderReadiness(
             name,
             ReadinessStatus.PROVIDER_RUNTIME_INCOMPATIBLE,
-            f"Hunyuan3D-2GP requires Transformers 4.49.0; active runtime has {transformers_version}. No dependency was changed automatically.",
+            "Hunyuan3D-2GP requires Transformers 4.49.0; "
+            f"active runtime has {transformers_version}. "
+            "No dependency was changed automatically.",
             True,
             True,
         )

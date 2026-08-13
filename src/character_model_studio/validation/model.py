@@ -121,7 +121,10 @@ class ModelValidator:
         # skipping this advisory diagnostic above a bounded face count.
         if len(faces) > 100_000:
             metrics["connected_components"] = -1
-            warning = "Fragmentation diagnostic skipped for high-density mesh to preserve validation memory"
+            warning = (
+                "Fragmentation diagnostic skipped for high-density mesh "
+                "to preserve validation memory"
+            )
             warnings.append(warning)
             checks.append(CheckResult("components", ValidationStatus.PASS_WITH_WARNINGS, warning))
         else:
