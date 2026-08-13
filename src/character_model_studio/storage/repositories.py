@@ -476,6 +476,24 @@ class LocalRepository:
             )
         return self.get_rig_attempt(rig_id)
 
+    def set_rig_attempt_status(self, rig_id: str, status: RigStatus) -> RigAttempt:
+        """Advance a rig derivative without changing its accepted source artifact."""
+        with self._connect() as connection:
+            connection.execute(
+                "UPDATE rig_attempts SET status = ? WHERE id = ?",
+                (status.value, rig_id),
+            )
+        return self.get_rig_attempt(rig_id)
+
+    def fail_rig_attempt(self, rig_id: str, reason: str) -> RigAttempt:
+        """Record a recoverable rigging failure while retaining the static source."""
+        with self._connect() as connection:
+            connection.execute(
+                "UPDATE rig_attempts SET status = ?, metrics_json = ? WHERE id = ?",
+                (RigStatus.FAILED.value, json.dumps({"failure_reason": reason}), rig_id),
+            )
+        return self.get_rig_attempt(rig_id)
+
     def persist_rig_validation_report(
         self, rig_id: str, report: RiggedModelValidationReport
     ) -> None:

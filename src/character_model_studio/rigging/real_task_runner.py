@@ -6,6 +6,7 @@ from PySide6.QtCore import QObject, QThread, Signal, Slot
 
 from character_model_studio.common.cancellation import CancellationToken
 from character_model_studio.rigging.providers.unirig import UniRigProvider
+from character_model_studio.rigging.models import RigStatus
 from character_model_studio.storage.repositories import LocalRepository
 from character_model_studio.validation.rigged_model import RiggedModelValidator
 
@@ -25,12 +26,15 @@ class _Worker(QObject):
 
     @Slot()
     def run(self) -> None:
+        rig_id: str | None = None
         try:
             attempt = self._repository.get_attempt(self._attempt_id)
             if attempt.model_relative_path is None:
                 raise RuntimeError("Accepted model has no GLB artifact")
             provider = UniRigProvider()
             rig = self._repository.create_rig_attempt(attempt.id, provider.name, "upstream-local")
+            rig_id = rig.id
+            self._repository.set_rig_attempt_status(rig_id, RigStatus.RIGGING)
             output = self._repository.attempt_artifact_path(
                 attempt.id, f"rigs/{rig.id}/rigged.glb"
             )
@@ -44,6 +48,7 @@ class _Worker(QObject):
                 self._token,
                 self.progress.emit,
             )
+            self._repository.set_rig_attempt_status(rig_id, RigStatus.VALIDATING)
             report = RiggedModelValidator().validate(result)
             if not report.acceptable:
                 raise RuntimeError(f"Rig validation failed: {report.failures}")
@@ -51,6 +56,8 @@ class _Worker(QObject):
             self._repository.persist_rig_validation_report(rig.id, report)
             self.completed.emit(rig.id)
         except (OSError, RuntimeError, ValueError, KeyError) as error:
+            if rig_id is not None:
+                self._repository.fail_rig_attempt(rig_id, str(error))
             self.failed.emit(str(error))
 
 
