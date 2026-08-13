@@ -27,6 +27,8 @@ class UniRigProvider(RiggingProvider):
     of silently downgrading shared dependencies or using CPU fallback.
     """
 
+    _TEXTURED_MERGE_TIMEOUT_SECONDS = 300
+
     @property
     def name(self) -> str:
         return "UniRig"
@@ -130,11 +132,17 @@ class UniRigProvider(RiggingProvider):
             encoding="utf-8",
             errors="replace",
         )
+        deadline = time.monotonic() + self._TEXTURED_MERGE_TIMEOUT_SECONDS
         while process.poll() is None:
             if cancellation.is_cancelled:
-                process.terminate()
-                process.wait(timeout=15)
+                self._terminate_process_tree(process)
                 raise RuntimeError("UniRig textured rig merge was cancelled")
+            if time.monotonic() >= deadline:
+                self._terminate_process_tree(process)
+                raise RuntimeError(
+                    "UniRig textured rig merge exceeded its five-minute time limit; "
+                    "the isolated provider process was stopped."
+                )
             time.sleep(0.1)
         if process.returncode != 0:
             detail = "" if process.stderr is None else process.stderr.read().strip()[-2000:]
@@ -145,6 +153,17 @@ class UniRigProvider(RiggingProvider):
         if progress is not None:
             progress(RiggingProgress("texture_merge", "Textured rigged GLB validated", 2, 2))
         return output_glb
+
+    @staticmethod
+    def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
+        """Stop a Windows provider launcher and any Blender/Python descendants."""
+        subprocess.run(
+            ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+        )
 
     @staticmethod
     def _merge_command(
