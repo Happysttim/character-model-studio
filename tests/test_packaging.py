@@ -33,6 +33,7 @@ def test_packaging_recipe_excludes_development_only_mypy_runtime() -> None:
 
     assert '"mypy"' in recipe
     assert "excludes=excludes" in recipe
+    assert '"mypy_extensions"' not in recipe
 
 
 def test_frozen_texture_lane_requires_explicit_child_runtime(

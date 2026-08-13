@@ -15,7 +15,7 @@ hiddenimports = ["character_model_studio", "pyvistaqt"]
 # extension name is not a runtime application dependency and can be omitted by
 # PyInstaller, causing a windowed EXE to fail during import.  Keep every
 # development-only checker out of the frozen runtime so PyVista sees no mypy.
-excludes = ["mypy", "mypy_extensions", "pytest", "pytestqt", "coverage", "ruff"]
+excludes = ["mypy", "pytest", "pytestqt", "coverage", "ruff"]
 
 for package in ("pyvista", "pyvistaqt", "vtkmodules"):
     datas += collect_data_files(package)
