@@ -572,11 +572,18 @@ class LocalRepository:
         return None if row is None else json.loads(row[0])
 
     def save_pose_and_animation(self, rig_id: str) -> tuple[str, str]:
-        """Keep the harness fixture helper while using the production persistence methods."""
-        pose_id = self.save_pose_document(rig_id, "From", {"schemaVersion": 1, "bones": {}})
-        clip_id = self.save_animation_clip(
-            rig_id, "Fixture", {"schemaVersion": 1, "durationMs": 1000, "loopPreview": True}
-        )
+        """Keep the legacy mock-fixture helper independent from production validation gates."""
+        pose_id, clip_id = uuid.uuid4().hex, uuid.uuid4().hex
+        pose = json.dumps({"schemaVersion": 1, "bones": {}})
+        clip = json.dumps({"schemaVersion": 1, "durationMs": 1000, "loopPreview": True})
+        with self._connect() as connection:
+            connection.execute(
+                "INSERT INTO pose_documents VALUES (?, ?, ?, ?)", (pose_id, rig_id, "From", pose)
+            )
+            connection.execute(
+                "INSERT INTO animation_clips VALUES (?, ?, ?, ?)",
+                (clip_id, rig_id, "Fixture", clip),
+            )
         return pose_id, clip_id
 
     @contextmanager
