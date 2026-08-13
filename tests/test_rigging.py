@@ -10,6 +10,8 @@ from character_model_studio.rigging.providers.mock import MockRiggingProvider
 from character_model_studio.rigging.providers.unirig import UniRigProvider
 from character_model_studio.storage.database import initialize_database
 from character_model_studio.storage.repositories import LocalRepository
+from character_model_studio.validation.model import ValidationStatus
+from character_model_studio.validation.rigged_model import RiggedModelValidator
 
 
 def test_fixture_rig_has_skin_joints_and_normalized_vertex_weights(tmp_path) -> None:
@@ -34,6 +36,23 @@ def test_fixture_rig_has_skin_joints_and_normalized_vertex_weights(tmp_path) -> 
     primitive = gltf.meshes[0].primitives[0]
     assert primitive.attributes.JOINTS_0 is not None
     assert primitive.attributes.WEIGHTS_0 is not None
+    report = RiggedModelValidator().validate(repository.projects_root / rig.rigged_relative_path)
+    assert report.overall_status is ValidationStatus.PASS
+
+
+def test_rig_validator_rejects_missing_skin(tmp_path) -> None:
+    path = tmp_path / "static.glb"
+    from character_model_studio.rigging.fixture_glb import write_fixture_rigged_glb
+
+    write_fixture_rigged_glb(path)
+    gltf = GLTF2().load_binary(str(path))
+    gltf.skins = []
+    gltf.save_binary(path)
+
+    report = RiggedModelValidator().validate(path)
+
+    assert report.overall_status is ValidationStatus.FAIL
+    assert "no skin" in report.failures[0].lower()
 
 
 def test_unirig_probe_never_downloads_or_loads_weights() -> None:

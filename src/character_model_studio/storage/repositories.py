@@ -433,6 +433,24 @@ class LocalRepository:
             )
         return self.get_rig_attempt(rig_id)
 
+    def persist_rig_validation_report(self, rig_id: str, report: object) -> None:
+        """Persist the independent rig report for review and animation gating."""
+        report_dict = report.as_dict()
+        with self._connect() as connection:
+            connection.execute(
+                "INSERT OR REPLACE INTO rig_validation_reports VALUES (?, ?, ?, ?)",
+                (rig_id, report.overall_status.value, json.dumps(report_dict), _now()),
+            )
+
+    def rig_validation_status(self, rig_id: str) -> str | None:
+        """Return the persisted independent rig validation status."""
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT overall_status FROM rig_validation_reports WHERE rig_attempt_id = ?",
+                (rig_id,),
+            ).fetchone()
+        return None if row is None else str(row[0])
+
     def save_pose_and_animation(self, rig_id: str) -> tuple[str, str]:
         pose_id, clip_id = uuid.uuid4().hex, uuid.uuid4().hex
         pose = json.dumps({"schemaVersion": 1, "bones": {}})

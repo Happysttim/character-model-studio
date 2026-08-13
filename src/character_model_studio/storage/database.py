@@ -82,6 +82,12 @@ def initialize_database(database_path: Path) -> None:
                 name TEXT NOT NULL,
                 payload_json TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS rig_validation_reports (
+                rig_attempt_id TEXT PRIMARY KEY REFERENCES rig_attempts(id),
+                overall_status TEXT NOT NULL,
+                report_json TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
             """
         )
         attempt_columns = {
