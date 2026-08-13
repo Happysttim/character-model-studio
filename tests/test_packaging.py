@@ -24,6 +24,7 @@ def test_frozen_entry_uses_an_absolute_package_import() -> None:
     assert "character_model_studio" in Path("packaging/character_model_studio.spec").read_text(
         encoding="utf-8"
     )
+    assert "package-startup-error.log" in entry
 
 
 def test_packaging_recipe_excludes_development_only_mypy_runtime() -> None:
