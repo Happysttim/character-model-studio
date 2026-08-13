@@ -20,9 +20,11 @@ from character_model_studio.app.bootstrap import ApplicationContext
 from character_model_studio.platform.windows.dwm import enable_system_backdrop
 from character_model_studio.ui.motion import MotionPreferences, fade_in
 from character_model_studio.ui.theme import application_stylesheet
+from character_model_studio.ui.views.animate import AnimateWorkspace
 from character_model_studio.ui.views.capture import CaptureWorkspace
 from character_model_studio.ui.views.diagnostics import DiagnosticsWorkspace
 from character_model_studio.ui.views.processing import ProcessingWorkspace
+from character_model_studio.ui.views.projects import ProjectsWorkspace
 from character_model_studio.ui.views.review import ReviewWorkspace
 from character_model_studio.ui.views.rig import RigWorkspace
 from character_model_studio.ui.views.workspace import WORKSPACES, WorkspaceView
@@ -114,6 +116,10 @@ class MainWindow(QMainWindow):
         current_workspace = self._workspace_stack.currentWidget()
         if isinstance(current_workspace, ReviewWorkspace):
             current_workspace.activate()
+        if isinstance(current_workspace, AnimateWorkspace):
+            current_workspace.activate()
+        if isinstance(current_workspace, ProjectsWorkspace):
+            current_workspace.refresh()
         definition = next(item for item in WORKSPACES if item.key == destination)
         self._page_title.setText(definition.title)
         self._page_subtitle.setText(definition.subtitle)
@@ -208,6 +214,11 @@ class MainWindow(QMainWindow):
                 view.reconstruction_ready.connect(self._open_review_attempt)
             elif definition.key == "processing":
                 view = self._processing_workspace
+            elif definition.key == "projects":
+                view = ProjectsWorkspace(self._context, self._workspace_stack)
+                view.project_opened.connect(self._open_project)
+            elif definition.key == "animate":
+                view = AnimateWorkspace(self._context, self._workspace_stack)
             elif definition.key == "diagnostics":
                 view = DiagnosticsWorkspace(self._context, self._workspace_stack)
                 view.reduce_motion.toggled.connect(self._set_reduce_motion)
@@ -237,6 +248,14 @@ class MainWindow(QMainWindow):
     def _start_processing(self, attempt_id: str) -> None:
         self._processing_workspace.begin(attempt_id)
         self.navigate("processing")
+
+    def _open_project(self, project_id: str) -> None:
+        """Confirm reopening from the local project list without creating a server session."""
+        repository = self._context.repository
+        if repository is None:
+            return
+        project = repository.get_project(project_id)
+        self._toast.show_message(f"Opened local project: {project.name}")
 
     def _set_reduce_motion(self, enabled: bool) -> None:
         self._motion_preferences.reduce_motion = enabled

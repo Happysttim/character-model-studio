@@ -73,7 +73,11 @@ class RigWorkspace(QWidget):
         self._provider_detail.setText(readiness.reason)
         repository = self._context.repository
         accepted = repository.latest_accepted_attempt() if repository is not None else None
-        self._create_rig.setEnabled(readiness.status.value == "READY" and accepted is not None)
+        self._create_rig.setEnabled(
+            not self._runner.is_running
+            and readiness.status.value == "READY"
+            and accepted is not None
+        )
         self._create_rig.setToolTip(
             "Create a CUDA rig from the newest accepted GLB"
             if self._create_rig.isEnabled()
@@ -114,6 +118,7 @@ class RigWorkspace(QWidget):
 
     def _show_progress(self, update: object) -> None:
         label = getattr(update, "label", "Rigging in progress")
+        self._create_rig.setEnabled(False)
         self._provider_detail.setText(str(label))
 
     def _show_completed(self, _rig_id: str) -> None:

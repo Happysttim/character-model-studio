@@ -71,6 +71,11 @@ class RealRiggingTaskRunner(QObject):
         self._thread: QThread | None = None
         self._worker: _Worker | None = None
 
+    @property
+    def is_running(self) -> bool:
+        """Whether a local CUDA rigging attempt currently owns this runner."""
+        return self._thread is not None
+
     def start(self, repository: LocalRepository, attempt_id: str) -> CancellationToken:
         if self._thread is not None:
             raise RuntimeError("A rigging task is already running")

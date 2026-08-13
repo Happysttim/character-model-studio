@@ -37,6 +37,9 @@ def test_main_window_instantiates(qtbot, tmp_path) -> None:
         "Animate",
         "Diagnostics",
     }
+    create = window.findChild(QPushButton, "createProjectButton")
+    assert create is not None
+    assert create.isEnabled()
 
 
 def test_navigation_and_reduce_motion_remain_available(qtbot, tmp_path) -> None:
@@ -50,7 +53,7 @@ def test_navigation_and_reduce_motion_remain_available(qtbot, tmp_path) -> None:
     window.navigate("diagnostics")
 
     assert window.current_destination == "diagnostics"
-    reduce_motion = window.findChild(QCheckBox)
+    reduce_motion = window.findChild(QCheckBox, "reduceMotionToggle")
     assert reduce_motion is not None
     reduce_motion.setChecked(True)
     assert window._motion_preferences.reduce_motion is True

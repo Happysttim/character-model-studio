@@ -41,6 +41,7 @@ class DiagnosticsWorkspace(QWidget):
         label.setWordWrap(True)
         panel_layout.addWidget(label)
         self.reduce_motion = QCheckBox("Reduce motion", panel)
+        self.reduce_motion.setObjectName("reduceMotionToggle")
         panel_layout.addWidget(self.reduce_motion)
         copy_diagnostics = SecondaryButton("Copy diagnostics", panel)
         copy_diagnostics.clicked.connect(lambda: _copy_diagnostics(text))

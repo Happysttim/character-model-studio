@@ -27,6 +27,7 @@ class ModelViewport(QWidget):
         self._grid_actor: Any | None = None
         self._skeleton_actor: Any | None = None
         self._joint_actor: Any | None = None
+        self._selected_joint_actor: Any | None = None
         self._loaded_model: LoadedModel | None = None
         self._turntable_timer = QTimer(self)
         self._turntable_timer.setInterval(33)
@@ -70,6 +71,7 @@ class ModelViewport(QWidget):
         self._bounds_actor = None
         self._skeleton_actor = None
         self._joint_actor = None
+        self._selected_joint_actor = None
         self.set_axes_visible(True)
         self.set_grid_visible(False)
         self.set_bounds_visible(False)
@@ -105,6 +107,26 @@ class ModelViewport(QWidget):
         for actor in (self._skeleton_actor, self._joint_actor):
             if actor is not None:
                 actor.SetVisibility(True)
+        self._plotter.render()
+        return True
+
+    def select_skeleton_joint(self, rigged_path: Path, joint_index: int) -> bool:
+        """Highlight a selected joint so bone editing has visible viewer feedback."""
+        joints, _edges = _load_skeleton_geometry(rigged_path)
+        if joint_index < 0 or joint_index >= len(joints):
+            return False
+        point = pv.PolyData([joints[joint_index]])
+        if self._selected_joint_actor is None:
+            self._selected_joint_actor = self._plotter.add_mesh(
+                point,
+                color="#F2A65A",
+                point_size=20,
+                render_points_as_spheres=True,
+                name="selected-skeleton-joint",
+            )
+        else:
+            self._selected_joint_actor.mapper.SetInputData(point)
+            self._selected_joint_actor.SetVisibility(True)
         self._plotter.render()
         return True
 
@@ -190,6 +212,7 @@ class ModelViewport(QWidget):
         self._grid_actor = None
         self._skeleton_actor = None
         self._joint_actor = None
+        self._selected_joint_actor = None
         self._loaded_model = None
         super().closeEvent(event)
 

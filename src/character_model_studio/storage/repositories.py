@@ -56,6 +56,16 @@ class LocalRepository:
             ).fetchall()
         return [Project(row[0], row[1], datetime.fromisoformat(row[2])) for row in rows]
 
+    def get_project(self, project_id: str) -> Project:
+        """Reopen one persisted project record by its stable local identifier."""
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT id, name, created_at FROM projects WHERE id = ?", (project_id,)
+            ).fetchone()
+        if row is None:
+            raise KeyError(f"Unknown local project: {project_id}")
+        return Project(row[0], row[1], datetime.fromisoformat(row[2]))
+
     def recover_interrupted_attempts(self) -> int:
         """Mark transient attempts failed after an abnormal application exit."""
         transient = tuple(
@@ -514,18 +524,59 @@ class LocalRepository:
             ).fetchone()
         return None if row is None else str(row[0])
 
-    def save_pose_and_animation(self, rig_id: str) -> tuple[str, str]:
-        pose_id, clip_id = uuid.uuid4().hex, uuid.uuid4().hex
-        pose = json.dumps({"schemaVersion": 1, "bones": {}})
-        clip = json.dumps({"schemaVersion": 1, "durationMs": 1000, "loopPreview": True})
+    def save_pose_document(self, rig_id: str, name: str, payload: dict[str, object]) -> str:
+        """Persist one named quaternion pose for a validated rig revision."""
+        if self.rig_validation_status(rig_id) != "PASS":
+            raise ValueError("Pose editing requires a rig that passed validation")
+        pose_id = uuid.uuid4().hex
         with self._connect() as connection:
             connection.execute(
-                "INSERT INTO pose_documents VALUES (?, ?, ?, ?)", (pose_id, rig_id, "From", pose)
+                "DELETE FROM pose_documents WHERE rig_attempt_id = ? AND name = ?", (rig_id, name)
+            )
+            connection.execute(
+                "INSERT INTO pose_documents VALUES (?, ?, ?, ?)",
+                (pose_id, rig_id, name, json.dumps(payload)),
+            )
+        return pose_id
+
+    def load_pose_documents(self, rig_id: str) -> dict[str, dict[str, object]]:
+        """Return named pose payloads for reopening the local animation editor."""
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT name, payload_json FROM pose_documents WHERE rig_attempt_id = ?", (rig_id,)
+            ).fetchall()
+        return {str(name): json.loads(payload) for name, payload in rows}
+
+    def save_animation_clip(self, rig_id: str, name: str, payload: dict[str, object]) -> str:
+        """Persist timeline settings without coupling them to a UI widget."""
+        if self.rig_validation_status(rig_id) != "PASS":
+            raise ValueError("Animation playback requires a rig that passed validation")
+        clip_id = uuid.uuid4().hex
+        with self._connect() as connection:
+            connection.execute(
+                "DELETE FROM animation_clips WHERE rig_attempt_id = ? AND name = ?", (rig_id, name)
             )
             connection.execute(
                 "INSERT INTO animation_clips VALUES (?, ?, ?, ?)",
-                (clip_id, rig_id, "Fixture", clip),
+                (clip_id, rig_id, name, json.dumps(payload)),
             )
+        return clip_id
+
+    def load_animation_clip(self, rig_id: str, name: str = "From-To") -> dict[str, object] | None:
+        """Load one saved local timeline configuration for a rig revision."""
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT payload_json FROM animation_clips WHERE rig_attempt_id = ? AND name = ?",
+                (rig_id, name),
+            ).fetchone()
+        return None if row is None else json.loads(row[0])
+
+    def save_pose_and_animation(self, rig_id: str) -> tuple[str, str]:
+        """Keep the harness fixture helper while using the production persistence methods."""
+        pose_id = self.save_pose_document(rig_id, "From", {"schemaVersion": 1, "bones": {}})
+        clip_id = self.save_animation_clip(
+            rig_id, "Fixture", {"schemaVersion": 1, "durationMs": 1000, "loopPreview": True}
+        )
         return pose_id, clip_id
 
     @contextmanager
