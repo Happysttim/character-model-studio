@@ -90,14 +90,6 @@ class MockWorkflowTaskRunner(QObject):
 
     @Slot()
     def _finish_task(self) -> None:
-        """Publish only after retaining the finished QThread until Qt can delete it.
-
-        Dropping the final Python reference inside the ``finished`` slot can race
-        Qt's native thread teardown on Windows when another Qt test/app worker has
-        just run.  Mirror the real-provider runner: retain a local reference and
-        schedule QObject destruction after its terminal signals were delivered.
-        """
-        thread = self._thread
         self._worker = None
         self._thread = None
         if self._outcome is not None:
@@ -109,8 +101,6 @@ class MockWorkflowTaskRunner(QObject):
                 self.cancelled.emit(arguments[0])
             else:
                 self.failed.emit(arguments[0], arguments[1])
-        if thread is not None:
-            thread.deleteLater()
 
     def _record_outcome(self, outcome: str, *arguments: str) -> None:
         self._outcome = (outcome, arguments)
