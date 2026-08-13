@@ -30,7 +30,10 @@ try {
     function Invoke-ProjectPython {
         param([string[]]$Arguments)
 
-        & $python @Arguments
+        # -E ignores inherited Python environment configuration in addition to
+        # clearing PYTHONPATH above.  This prevents a globally installed NumPy
+        # (or any other compiled package) from shadowing this project's venv.
+        & $python -E @Arguments
         if ($LASTEXITCODE -ne 0) {
             exit $LASTEXITCODE
         }
@@ -60,7 +63,14 @@ try {
             Invoke-ProjectPython @('-m', 'character_model_studio.tools.real_workflow_smoke')
         }
         'test-model-validation' { Invoke-ProjectPython @('-m', 'pytest', 'tests/test_model_validation.py') }
-        'test-rigging' { Invoke-ProjectPython @('-m', 'pytest', 'tests/test_rigging.py', 'tests/test_mock_workflow.py') }
+        'test-rigging' {
+            Invoke-ProjectPython @('-m', 'pytest', 'tests/test_rigging.py')
+            Invoke-ProjectPython @('-m', 'character_model_studio.tools.real_rigging_smoke')
+        }
+        'test-animation' {
+            Invoke-ProjectPython @('-m', 'pytest', 'tests/test_animation.py')
+            Invoke-ProjectPython @('-m', 'character_model_studio.tools.real_animation_smoke')
+        }
         'test-integration' { Invoke-ProjectPython @('-m', 'pytest', 'tests/test_integration.py') }
         'build' { Invoke-ProjectPython @('packaging/build.py') }
         'package' { Invoke-ProjectPython @('packaging/build.py') }
