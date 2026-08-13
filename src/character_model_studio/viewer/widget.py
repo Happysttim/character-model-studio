@@ -11,6 +11,8 @@ from PySide6.QtCore import QTimer, Signal
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 from pyvistaqt import QtInteractor
 
+from character_model_studio.animation.poses import Quaternion
+from character_model_studio.animation.skinning import SkinnedAsset, load_skinned_asset
 from character_model_studio.viewer.cameras import CameraPreset, apply_camera_preset
 from character_model_studio.viewer.scene import LoadedModel, load_glb_model
 
@@ -31,6 +33,8 @@ class ModelViewport(QWidget):
         self._joint_actor: Any | None = None
         self._selected_joint_actor: Any | None = None
         self._skeleton_points: list[list[float]] = []
+        self._skeleton_edges: list[tuple[int, int]] = []
+        self._skinned_asset: SkinnedAsset | None = None
         self._loaded_model: LoadedModel | None = None
         self._turntable_timer = QTimer(self)
         self._turntable_timer.setInterval(33)
@@ -75,6 +79,7 @@ class ModelViewport(QWidget):
         self._skeleton_actor = None
         self._joint_actor = None
         self._selected_joint_actor = None
+        self._skinned_asset = None
         self.set_axes_visible(True)
         self.set_grid_visible(False)
         self.set_bounds_visible(False)
@@ -91,6 +96,7 @@ class ModelViewport(QWidget):
             return self._skeleton_actor is not None
         joints, edges = _load_skeleton_geometry(rigged_path)
         self._skeleton_points = joints
+        self._skeleton_edges = edges
         if not joints:
             return False
         if self._skeleton_actor is None:
@@ -114,6 +120,32 @@ class ModelViewport(QWidget):
         self._plotter.render()
         return True
 
+    def enable_cpu_skinning(self, rigged_path: Path) -> bool:
+        """Decode the GLB skin once so animation edits can deform VTK mesh points."""
+        asset = load_skinned_asset(rigged_path)
+        if self._loaded_model is None or len(asset.vertices) != self._loaded_model.mesh.n_points:
+            return False
+        self._skinned_asset = asset
+        return True
+
+    def apply_skeletal_pose(self, rotations: dict[str, Quaternion]) -> bool:
+        """Apply CPU LBS and update both mesh vertices and parent-child overlay geometry."""
+        if self._skinned_asset is None or self._loaded_model is None:
+            return False
+        vertices, joints = self._skinned_asset.deform(rotations)
+        self._loaded_model.mesh.points = vertices
+        self._skeleton_points = joints.tolist()
+        if self._joint_actor is not None:
+            self._joint_actor.mapper.SetInputData(pv.PolyData(joints))
+        if self._skeleton_actor is not None and self._skeleton_edges:
+            lines = pv.PolyData(joints)
+            lines.lines = [
+                value for start, end in self._skeleton_edges for value in (2, start, end)
+            ]
+            self._skeleton_actor.mapper.SetInputData(lines)
+        self._plotter.render()
+        return True
+
     def enable_skeleton_picking(self) -> None:
         """Map a clicked/dragged overlay point to the nearest selectable joint."""
 
@@ -132,7 +164,9 @@ class ModelViewport(QWidget):
 
     def select_skeleton_joint(self, rigged_path: Path, joint_index: int) -> bool:
         """Highlight a selected joint so bone editing has visible viewer feedback."""
-        joints, _edges = _load_skeleton_geometry(rigged_path)
+        joints = self._skeleton_points
+        if not joints:
+            joints, _edges = _load_skeleton_geometry(rigged_path)
         if joint_index < 0 or joint_index >= len(joints):
             return False
         point = pv.PolyData([joints[joint_index]])
@@ -233,6 +267,7 @@ class ModelViewport(QWidget):
         self._skeleton_actor = None
         self._joint_actor = None
         self._selected_joint_actor = None
+        self._skinned_asset = None
         self._loaded_model = None
         super().closeEvent(event)
 

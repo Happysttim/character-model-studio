@@ -66,6 +66,7 @@ class AnimateWorkspace(QWidget):
         viewport = self._ensure_viewport()
         viewport.load_glb(path)
         viewport.set_skeleton_overlay(path, True)
+        skinning_ready = viewport.enable_cpu_skinning(path)
         viewport.enable_skeleton_picking()
         viewport.skeleton_joint_picked.connect(self._pick_bone)
         bones = _bone_names(path)
@@ -74,7 +75,10 @@ class AnimateWorkspace(QWidget):
         self._rotations = {bone: _identity() for bone in bones}
         self._restore_saved_state()
         self._set_controls_enabled(bool(bones))
-        self._status.setText(f"Loaded validated rig with {len(bones)} editable bones.")
+        self._status.setText(
+            f"Loaded validated rig with {len(bones)} editable bones. "
+            f"CPU skinning: {'ready' if skinning_ready else 'unavailable for this GLB'}"
+        )
         self._sync_editor()
 
     def reset_loaded_rig(self) -> None:
@@ -187,7 +191,11 @@ class AnimateWorkspace(QWidget):
             return
         values = [spin.value() for spin in self._angles]
         self._rotations[self._bone.currentText()] = _quaternion_from_euler(*values)
-        self._status.setText("Local rotation updated. Save From or To to persist this pose.")
+        if self._viewport is not None:
+            self._viewport.apply_skeletal_pose(self._rotations)
+        self._status.setText(
+            "Local rotation deformed the preview. Save From or To to persist this pose."
+        )
 
     def _sync_editor(self) -> None:
         if not self._bone.currentText():
@@ -226,6 +234,8 @@ class AnimateWorkspace(QWidget):
 
     def reset_pose(self) -> None:
         self._rotations = {name: _identity() for name in self._rotations}
+        if self._viewport is not None:
+            self._viewport.apply_skeletal_pose(self._rotations)
         self._sync_editor()
         self._status.setText("Bind-pose rotations restored.")
 
@@ -263,6 +273,8 @@ class AnimateWorkspace(QWidget):
             return
         pose = interpolate_pose(self._from_pose, self._to_pose, value / 1000)
         self._rotations.update(pose.bones)
+        if self._viewport is not None:
+            self._viewport.apply_skeletal_pose(self._rotations)
 
     def save_animation(self) -> None:
         if self._rig is None or self._from_pose is None or self._to_pose is None:
