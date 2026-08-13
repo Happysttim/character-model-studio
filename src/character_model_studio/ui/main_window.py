@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 
 from character_model_studio.app.bootstrap import ApplicationContext
 from character_model_studio.platform.windows.dwm import enable_system_backdrop
+from character_model_studio.ui.i18n import LanguageManager
 from character_model_studio.ui.motion import MotionPreferences, fade_in
 from character_model_studio.ui.theme import application_stylesheet
 from character_model_studio.ui.views.animate import AnimateWorkspace
@@ -27,6 +28,7 @@ from character_model_studio.ui.views.processing import ProcessingWorkspace
 from character_model_studio.ui.views.projects import ProjectsWorkspace
 from character_model_studio.ui.views.review import ReviewWorkspace
 from character_model_studio.ui.views.rig import RigWorkspace
+from character_model_studio.ui.views.settings import SettingsWorkspace
 from character_model_studio.ui.views.workspace import WORKSPACES, WorkspaceView
 from character_model_studio.ui.widgets.controls import StatusIndicator, Toast
 
@@ -89,6 +91,8 @@ class MainWindow(QMainWindow):
         self._navigation_buttons: dict[str, QPushButton] = {}
         self._workspace_indexes: dict[str, int] = {}
         self._backdrop_requested = False
+        self._language = LanguageManager(context.paths.root_directory / "settings.json")
+        self._language.changed.connect(self._apply_language)
 
         self.setObjectName("mainWindow")
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
@@ -100,6 +104,7 @@ class MainWindow(QMainWindow):
         self._resize_grip.setObjectName("windowResizeGrip")
         self._position_resize_grip()
         self.navigate("projects")
+        self._apply_language(self._language.language)
 
     @property
     def current_destination(self) -> str:
@@ -225,6 +230,8 @@ class MainWindow(QMainWindow):
             elif definition.key == "diagnostics":
                 view = DiagnosticsWorkspace(self._context, self._workspace_stack)
                 view.reduce_motion.toggled.connect(self._set_reduce_motion)
+            elif definition.key == "settings":
+                view = SettingsWorkspace(self._language, self._workspace_stack)
             elif definition.key == "rig":
                 view = RigWorkspace(self._context, definition, self._workspace_stack)
                 self._rig_workspace = view
@@ -266,6 +273,13 @@ class MainWindow(QMainWindow):
     def _set_reduce_motion(self, enabled: bool) -> None:
         self._motion_preferences.reduce_motion = enabled
         self._toast.show_message("Reduced motion enabled" if enabled else "Motion restored")
+
+    def _apply_language(self, _language: str) -> None:
+        """Apply the persisted language across shell and already-built workspaces."""
+        self._language.apply(self)
+        definition = next(item for item in WORKSPACES if item.key == self._current_destination)
+        self._page_title.setText(self._language.translate(definition.title))
+        self._page_subtitle.setText(self._language.translate(definition.subtitle))
 
     def showEvent(self, event: QShowEvent) -> None:  # noqa: N802
         super().showEvent(event)

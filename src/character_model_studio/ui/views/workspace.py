@@ -59,6 +59,12 @@ WORKSPACES = (
         "No animation document is open.",
     ),
     WorkspaceDefinition(
+        "settings",
+        "Settings",
+        "Choose the application language and local preferences.",
+        "Language preferences are stored locally.",
+    ),
+    WorkspaceDefinition(
         "diagnostics",
         "Diagnostics",
         "Local readiness and accessibility preferences.",
