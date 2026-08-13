@@ -134,7 +134,7 @@ class UniRigProvider(RiggingProvider):
         )
         deadline = time.monotonic() + self._TEXTURED_MERGE_TIMEOUT_SECONDS
         while process.poll() is None:
-            if cancellation.is_cancelled:
+            if bool(cancellation.is_cancelled):
                 self._terminate_process_tree(process)
                 raise RuntimeError("UniRig textured rig merge was cancelled")
             if time.monotonic() >= deadline:

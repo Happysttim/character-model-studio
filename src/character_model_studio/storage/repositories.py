@@ -466,7 +466,9 @@ class LocalRepository:
             )
         return self.get_rig_attempt(rig_id)
 
-    def persist_rig_validation_report(self, rig_id: str, report: RiggedModelValidationReport) -> None:
+    def persist_rig_validation_report(
+        self, rig_id: str, report: RiggedModelValidationReport
+    ) -> None:
         """Persist the independent rig report for review and animation gating."""
         report_dict = report.as_dict()
         with self._connect() as connection:

@@ -52,7 +52,7 @@ class Hunyuan3D20Provider(ReconstructionProvider):
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA is unavailable; Hunyuan3D 2.0 will not fall back to CPU")
         snapshot = resolve_hunyuan3d_2_shape_snapshot()
-        from hy3dgen.shapegen import (  # type: ignore[import-not-found]
+        from hy3dgen.shapegen import (
             Hunyuan3DDiTFlowMatchingPipeline,
         )
 

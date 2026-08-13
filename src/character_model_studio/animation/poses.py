@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import acos, sin, sqrt
+from typing import cast
 
 Quaternion = tuple[float, float, float, float]
 
@@ -22,19 +23,19 @@ def slerp(start: Quaternion, end: Quaternion, progress: float) -> Quaternion:
     b = normalize_quaternion(end)
     dot = sum(first * second for first, second in zip(a, b, strict=True))
     if dot < 0:
-        b = tuple(-component for component in b)  # type: ignore[assignment]
+        b = (-b[0], -b[1], -b[2], -b[3])
         dot = -dot
     dot = max(-1.0, min(1.0, dot))
     if dot > 0.9995:
         return normalize_quaternion(
-            tuple(first + progress * (second - first) for first, second in zip(a, b, strict=True))
-        )  # type: ignore[arg-type]
+            cast(Quaternion, tuple(a[i] + progress * (b[i] - a[i]) for i in range(4)))
+        )
     angle = acos(dot)
     scale_a = sin((1 - progress) * angle) / sin(angle)
     scale_b = sin(progress * angle) / sin(angle)
     return normalize_quaternion(
-        tuple(scale_a * first + scale_b * second for first, second in zip(a, b, strict=True))
-    )  # type: ignore[arg-type]
+        cast(Quaternion, tuple(scale_a * a[i] + scale_b * b[i] for i in range(4)))
+    )
 
 
 @dataclass(frozen=True, slots=True)

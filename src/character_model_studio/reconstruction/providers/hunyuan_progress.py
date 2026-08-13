@@ -43,8 +43,8 @@ def observe_hunyuan_shape_progress(callback: ProgressCallback) -> Iterator[None]
     so this short-lived in-process adapter observes those loops without changing
     the installed upstream source tree.
     """
-    from hy3dgen.shapegen import pipelines  # type: ignore[import-not-found]
-    from hy3dgen.shapegen.models.autoencoders import (  # type: ignore[import-not-found]
+    from hy3dgen.shapegen import pipelines
+    from hy3dgen.shapegen.models.autoencoders import (
         volume_decoders,
     )
 

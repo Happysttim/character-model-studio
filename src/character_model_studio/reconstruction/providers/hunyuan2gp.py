@@ -43,7 +43,7 @@ class Hunyuan3D2GPProvider(ReconstructionProvider):
         paths = resolve_hunyuan2gp_paths()
         _configure_local_runtime(paths.source_directory, paths.model_cache)
         from hy3dgen.shapegen import (
-            Hunyuan3DDiTFlowMatchingPipeline,  # type: ignore[import-not-found]
+            Hunyuan3DDiTFlowMatchingPipeline,
         )
 
         self._shape_pipeline = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
