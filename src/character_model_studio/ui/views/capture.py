@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
 from shutil import rmtree
 
 from PySide6.QtCore import QObject, QPoint, QRect, Qt, QThread, QTimer, QUrl, Signal, Slot
@@ -157,14 +158,23 @@ class RecordingIndicator(QWidget):
 
 
 class _ImportWorker(QObject):
+    """Copy and inspect a selected local video outside the UI thread."""
+
     completed = Signal(object)
     failed = Signal(str)
-    def __init__(self, source, destination, thumbnail):
-        super().__init__(); self.source=source; self.destination=destination; self.thumbnail=thumbnail
+
+    def __init__(self, source: Path, destination: Path, thumbnail: Path) -> None:
+        super().__init__()
+        self._source = source
+        self._destination = destination
+        self._thumbnail = thumbnail
+
     @Slot()
-    def run(self):
-        try: self.completed.emit(import_video(self.source,self.destination,self.thumbnail))
-        except (OSError, ValueError) as error: self.failed.emit(str(error))
+    def run(self) -> None:
+        try:
+            self.completed.emit(import_video(self._source, self._destination, self._thumbnail))
+        except (OSError, ValueError) as error:
+            self.failed.emit(str(error))
 
 class CaptureWorkspace(QWidget):
     """Capture-ready surface that keeps selection/recording outside the main UI."""
@@ -300,20 +310,27 @@ class CaptureWorkspace(QWidget):
         )
         if not source:
             return
-        from pathlib import Path
         video_path = Path(source)
-        import uuid
         root = self._context.paths.projects_directory / "UnassignedCaptures" / uuid.uuid4().hex
         destination = root / f"imported{video_path.suffix.lower() or '.mp4'}"
         thumbnail = root / "thumbnail.jpg"
         if self._import_thread is not None:
             self._status.label.setText("A video import is already running")
             return
-        thread = QThread(self); worker = _ImportWorker(video_path, destination, thumbnail); worker.moveToThread(thread)
-        thread.started.connect(worker.run); worker.completed.connect(self._capture_completed); worker.failed.connect(self._capture_failed)
-        worker.completed.connect(thread.quit); worker.failed.connect(thread.quit); thread.finished.connect(worker.deleteLater)
-        thread.finished.connect(thread.deleteLater); thread.finished.connect(self._finish_import)
-        self._import_thread = thread; self._import_worker = worker; self._status.label.setText("Importing local video")
+        thread = QThread(self)
+        worker = _ImportWorker(video_path, destination, thumbnail)
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        worker.completed.connect(self._capture_completed)
+        worker.failed.connect(self._capture_failed)
+        worker.completed.connect(thread.quit)
+        worker.failed.connect(thread.quit)
+        thread.finished.connect(worker.deleteLater)
+        thread.finished.connect(thread.deleteLater)
+        thread.finished.connect(self._finish_import)
+        self._import_thread = thread
+        self._import_worker = worker
+        self._status.label.setText("Importing local video")
         thread.start()
 
     def _finish_import(self) -> None:

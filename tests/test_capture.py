@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 
 from character_model_studio.capture.models import CaptureSettings, PhysicalRegion
+from character_model_studio.capture.importer import import_video
 from character_model_studio.capture.recorder import FrameSource, PyAvH264Encoder, VideoEncoder
 from character_model_studio.capture.region import LogicalRect, MonitorGeometry, to_physical_region
 from character_model_studio.capture.session import CaptureSession
@@ -135,3 +136,18 @@ def test_pyav_encoder_writes_reopenable_h264_mp4(tmp_path) -> None:
 def test_pyav_encoder_rejects_odd_h264_dimensions(tmp_path) -> None:
     with pytest.raises(ValueError, match="even pixel dimensions"):
         PyAvH264Encoder(tmp_path / "odd.mp4", 641, 481, 30)
+
+
+def test_imported_video_creates_managed_copy_and_thumbnail(tmp_path) -> None:
+    source = tmp_path / "source.mp4"
+    encoder = PyAvH264Encoder(source, 320, 240, 30)
+    encoder.write(np.full((240, 320, 3), 128, dtype=np.uint8))
+    encoder.close()
+
+    result = import_video(source, tmp_path / "managed" / "capture.mp4", tmp_path / "managed" / "thumbnail.jpg")
+
+    assert result.video_path.is_file()
+    assert result.thumbnail_path.is_file()
+    assert result.width == 320
+    assert result.height == 240
+    assert result.frame_count >= 1
