@@ -142,12 +142,16 @@ class UniRigProvider(RiggingProvider):
         )
         deadline = time.monotonic() + self._TEXTURED_MERGE_TIMEOUT_SECONDS
         artifact_ready_at: float | None = None
-        while process.poll() is None:
+        while True:
             if output_glb.is_file() and output_glb.stat().st_size > 0:
                 artifact_ready_at = artifact_ready_at or time.monotonic()
                 if time.monotonic() - artifact_ready_at >= 2:
-                    self._terminate_process_tree(process)
+                    if process.poll() is None:
+                        self._terminate_process_tree(process)
                     break
+            elif process.poll() is not None and process.returncode != 0:
+                detail = "" if process.stderr is None else process.stderr.read().strip()[-2000:]
+                raise RuntimeError(f"UniRig textured rig merge failed: {detail}")
             if bool(cancellation.is_cancelled):
                 self._terminate_process_tree(process)
                 raise RuntimeError("UniRig textured rig merge was cancelled")
@@ -158,9 +162,6 @@ class UniRigProvider(RiggingProvider):
                     "the isolated provider process was stopped."
                 )
             time.sleep(0.1)
-        if process.returncode not in {0, None} and not output_glb.is_file():
-            detail = "" if process.stderr is None else process.stderr.read().strip()[-2000:]
-            raise RuntimeError(f"UniRig textured rig merge failed: {detail}")
         report = RiggedModelValidator().validate(output_glb)
         if not report.acceptable:
             raise RuntimeError(f"Merged rigged GLB failed validation: {report.failures}")
@@ -357,12 +358,25 @@ class UniRigProvider(RiggingProvider):
         )
         deadline = time.monotonic() + self._STAGE_TIMEOUT_SECONDS
         artifact_ready_at: float | None = None
-        while process.poll() is None:
+        while True:
             if completion_artifact is not None and completion_artifact.is_file():
                 artifact_ready_at = artifact_ready_at or time.monotonic()
                 if time.monotonic() - artifact_ready_at >= 2:
-                    self._terminate_process_tree(process)
+                    if process.poll() is None:
+                        self._terminate_process_tree(process)
                     break
+            elif completion_artifact is None and process.poll() is not None:
+                if process.returncode != 0:
+                    detail = "" if process.stderr is None else process.stderr.read().strip()[-2000:]
+                    raise RuntimeError(f"UniRig {stage} failed: {detail}")
+                break
+            elif (
+                completion_artifact is not None
+                and process.poll() is not None
+                and process.returncode != 0
+            ):
+                detail = "" if process.stderr is None else process.stderr.read().strip()[-2000:]
+                raise RuntimeError(f"UniRig {stage} failed: {detail}")
             if cancellation.is_cancelled:
                 self._terminate_process_tree(process)
                 raise RuntimeError(f"UniRig {stage} was cancelled")
@@ -373,11 +387,6 @@ class UniRigProvider(RiggingProvider):
                     "the isolated provider process was stopped."
                 )
             time.sleep(0.1)
-        if process.returncode not in {0, None} and not (
-            completion_artifact is not None and completion_artifact.is_file()
-        ):
-            detail = "" if process.stderr is None else process.stderr.read().strip()[-2000:]
-            raise RuntimeError(f"UniRig {stage} failed: {detail}")
         if progress is not None:
             progress(RiggingProgress(stage, label, completed, total))
 
