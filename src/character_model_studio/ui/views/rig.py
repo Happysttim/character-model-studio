@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from character_model_studio.app.bootstrap import ApplicationContext
+from character_model_studio.rigging.real_task_runner import RealRiggingTaskRunner
 from character_model_studio.rigging.providers.unirig import UniRigProvider
 from character_model_studio.ui.views.workspace import WorkspaceDefinition
 from character_model_studio.ui.widgets.controls import SecondaryButton, StatusIndicator
@@ -26,6 +27,10 @@ class RigWorkspace(QWidget):
         self._context = context
         self.definition = definition
         self._viewport: ModelViewport | None = None
+        self._runner = RealRiggingTaskRunner()
+        self._runner.progress.connect(self._show_progress)
+        self._runner.completed.connect(self._show_completed)
+        self._runner.failed.connect(self._show_failed)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(14)
@@ -42,6 +47,9 @@ class RigWorkspace(QWidget):
         refresh = SecondaryButton("Refresh readiness", provider_panel)
         refresh.clicked.connect(self.refresh)
         provider_layout.addWidget(refresh, alignment=Qt.AlignmentFlag.AlignLeft)
+        self._create_rig = SecondaryButton("Create Rig", provider_panel)
+        self._create_rig.clicked.connect(self._start_rigging)
+        provider_layout.addWidget(self._create_rig, alignment=Qt.AlignmentFlag.AlignLeft)
         layout.addWidget(provider_panel)
 
         viewer_panel = GlassPanel("secondary", self)
@@ -64,6 +72,13 @@ class RigWorkspace(QWidget):
         self._provider_status.label.setText(f"UniRig — {readiness.status}")
         self._provider_detail.setText(readiness.reason)
         repository = self._context.repository
+        accepted = repository.latest_accepted_attempt() if repository is not None else None
+        self._create_rig.setEnabled(readiness.status.value == "READY" and accepted is not None)
+        self._create_rig.setToolTip(
+            "Create a CUDA rig from the newest accepted GLB"
+            if self._create_rig.isEnabled()
+            else "Accept a GLB in Review and configure the local UniRig runtime first."
+        )
         if repository is None:
             return
         rigs = [rig for rig in repository.list_rig_attempts() if rig.rigged_relative_path]
@@ -83,3 +98,28 @@ class RigWorkspace(QWidget):
             f"{rig.provider}: {metadata.vertex_count} vertices, {metadata.face_count} faces. "
             f"Skeleton overlay: {'available' if overlay else 'unavailable'}.{fixture_note}"
         )
+
+    def _start_rigging(self) -> None:
+        repository = self._context.repository
+        accepted = None if repository is None else repository.latest_accepted_attempt()
+        if repository is None or accepted is None:
+            self._provider_detail.setText("Accept a GLB in Review before creating a rig.")
+            return
+        try:
+            self._runner.start(repository, accepted.id)
+            self._create_rig.setEnabled(False)
+            self._provider_detail.setText("UniRig is running in its isolated local CUDA runtime.")
+        except RuntimeError as error:
+            self._show_failed(str(error))
+
+    def _show_progress(self, update: object) -> None:
+        label = getattr(update, "label", "Rigging in progress")
+        self._provider_detail.setText(str(label))
+
+    def _show_completed(self, _rig_id: str) -> None:
+        self._provider_detail.setText("Rig validated; texture-preserved GLB is ready for review.")
+        self.refresh()
+
+    def _show_failed(self, message: str) -> None:
+        self._provider_detail.setText(f"Rigging failed; accepted model was preserved: {message}")
+        self.refresh()

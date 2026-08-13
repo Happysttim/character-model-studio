@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import time
 from collections.abc import Callable
 from pathlib import Path
+from shutil import copy2
 
 from character_model_studio.app.capabilities import (
     ProviderReadiness,
@@ -15,7 +17,7 @@ from character_model_studio.app.capabilities import (
 from character_model_studio.common.cancellation import CancellationToken
 from character_model_studio.rigging.interfaces import RiggingProvider
 from character_model_studio.rigging.models import RiggingProgress
-from character_model_studio.rigging.unirig_paths import resolve_unirig_paths
+from character_model_studio.rigging.unirig_paths import UniRigPaths, resolve_unirig_paths
 from character_model_studio.validation.rigged_model import RiggedModelValidator
 
 
@@ -65,7 +67,11 @@ class UniRigProvider(RiggingProvider):
                 False,
                 True,
             )
-        if not any(paths.model_cache.rglob("*.ckpt")):
+        required = (
+            paths.model_cache / "skeleton" / "articulation-xl_quantization_256" / "model.ckpt",
+            paths.model_cache / "skin" / "articulation-xl" / "model.ckpt",
+        )
+        if not all(path.is_file() for path in required):
             return ProviderReadiness(
                 self.name,
                 ReadinessStatus.NOT_INSTALLED,
@@ -75,16 +81,15 @@ class UniRigProvider(RiggingProvider):
                 True,
             )
         return ProviderReadiness(
-            self.name,
-            ReadinessStatus.PROVIDER_RUNTIME_INCOMPATIBLE,
-            "The Windows isolated UniRig command adapter has not passed a CUDA smoke test.",
-            True,
-            True,
+            self.name, ReadinessStatus.READY,
+            "Isolated UniRig CUDA runtime and local skeleton/skinning checkpoints are ready.",
+            True, True,
         )
 
     def load(self) -> None:
         readiness = self.probe()
-        raise RuntimeError(f"{readiness.status}: {readiness.reason}")
+        if readiness.status is not ReadinessStatus.READY:
+            raise RuntimeError(f"{readiness.status}: {readiness.reason}")
 
     def unload(self) -> None:
         """No provider is loaded until the external CUDA adapter is smoke-tested."""
@@ -196,5 +201,77 @@ class UniRigProvider(RiggingProvider):
         progress: Callable[[RiggingProgress], None] | None = None,
     ) -> str:
         del model_relative_path, cancellation, progress
+        raise RuntimeError("UniRig requires an application-owned project artifact path")
+
+    def rig_glb(
+        self, source_glb: Path, work_directory: Path, output_glb: Path,
+        cancellation: CancellationToken, progress: Callable[[RiggingProgress], None] | None = None,
+    ) -> Path:
+        """Run the official local UniRig stages then preserve source GLB textures."""
         self.load()
-        raise AssertionError("UniRig load must raise until a real CUDA adapter is available")
+        if not source_glb.is_file():
+            raise FileNotFoundError(f"Accepted source GLB was not found: {source_glb}")
+        paths = resolve_unirig_paths()
+        input_directory = work_directory / "input"
+        intermediate = work_directory / "intermediate"
+        skeleton_output = work_directory / "skeleton-output"
+        skin_output = work_directory / "skin-output"
+        input_directory.mkdir(parents=True, exist_ok=True)
+        copied_source = input_directory / "source.glb"
+        copy2(source_glb, copied_source)
+        environment = {
+            "PYTHONPATH": "",
+            "UNIRIG_MODEL_CACHE": str(paths.model_cache),
+            "UNIRIG_TRANSFORMERS_MODEL_DIR": str(
+                paths.model_cache / "transformers" / "facebook-opt-350m"
+            ),
+            "HF_HUB_OFFLINE": "1",
+        }
+        self._run_stage(
+            ["-m", "src.data.extract", "--config", "configs/data/quick_inference.yaml",
+             "--require_suffix", "obj,fbx,FBX,dae,glb,gltf,vrm", "--force_override", "true",
+             "--num_runs", "1", "--id", "0", "--time", "app", "--faces_target_count", "50000",
+             "--input_dir", str(input_directory), "--output_dir", str(intermediate)],
+            paths, environment, cancellation, progress, "prepare", "Preparing UniRig mesh input", 1, 4,
+        )
+        environment["UNIRIG_PRESERVE_INTERMEDIATE"] = "1"
+        self._run_stage(
+            ["run.py", "--task", "configs/task/quick_inference_skeleton_articulationxl_ar_256.yaml",
+             "--input_dir", str(input_directory), "--output_dir", str(skeleton_output),
+             "--npz_dir", str(intermediate)], paths, environment, cancellation, progress,
+            "skeleton", "Generating skeleton on CUDA", 2, 4,
+        )
+        environment.pop("UNIRIG_PRESERVE_INTERMEDIATE", None)
+        self._run_stage(
+            ["run.py", "--task", "configs/task/quick_inference_unirig_skin.yaml",
+             "--input_dir", str(input_directory), "--output_dir", str(skin_output),
+             "--npz_dir", str(intermediate)], paths, environment, cancellation, progress,
+            "skinning", "Generating skinning weights on CUDA", 3, 4,
+        )
+        result = self.merge_textured_rig(
+            skin_output / "source" / "predict.fbx", copied_source, output_glb, cancellation, progress
+        )
+        return result
+
+    def _run_stage(
+        self, arguments: list[str], paths: UniRigPaths, environment: dict[str, str],
+        cancellation: CancellationToken, progress: Callable[[RiggingProgress], None] | None,
+        stage: str, label: str, completed: int, total: int,
+    ) -> None:
+        if progress is not None:
+            progress(RiggingProgress(stage, label, completed - 1, total))
+        process = subprocess.Popen(
+            [str(paths.runtime_python), "-E", *arguments], cwd=paths.source_directory,
+            env={**os.environ, **environment}, stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace",
+        )
+        while process.poll() is None:
+            if cancellation.is_cancelled:
+                self._terminate_process_tree(process)
+                raise RuntimeError(f"UniRig {stage} was cancelled")
+            time.sleep(0.1)
+        if process.returncode != 0:
+            detail = "" if process.stderr is None else process.stderr.read().strip()[-2000:]
+            raise RuntimeError(f"UniRig {stage} failed: {detail}")
+        if progress is not None:
+            progress(RiggingProgress(stage, label, completed, total))

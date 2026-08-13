@@ -220,6 +220,16 @@ class LocalRepository:
             for row in rows
         ]
 
+    def latest_accepted_attempt(self) -> ModelAttempt | None:
+        """Return the most recently accepted source model for the Rig handoff."""
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT id FROM model_attempts WHERE status = ? "
+                "ORDER BY finished_at DESC, id DESC LIMIT 1",
+                (AttemptStatus.ACCEPTED.value,),
+            ).fetchone()
+        return None if row is None else self.get_attempt(str(row[0]))
+
     def attempt_artifact_path(self, attempt_id: str, filename: str) -> Path:
         """Return the project-local output location for an attempt artifact."""
         with self._connect() as connection:
