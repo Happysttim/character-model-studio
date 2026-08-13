@@ -10,7 +10,7 @@ from PySide6.QtCore import QObject, QPoint, QRect, Qt, QThread, QTimer, QUrl, Si
 from PySide6.QtGui import QColor, QKeyEvent, QMouseEvent, QPainter, QPen, QPixmap, QScreen
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
-from PySide6.QtWidgets import QFileDialog, QLabel, QRadioButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFileDialog, QHBoxLayout, QLabel, QRadioButton, QVBoxLayout, QWidget
 
 from character_model_studio.app.bootstrap import ApplicationContext
 from character_model_studio.capture.importer import import_video
@@ -244,15 +244,24 @@ class CaptureWorkspace(QWidget):
         self._play_preview.hide()
         panel_layout.addWidget(self._poster)
         panel_layout.addWidget(self._preview)
-        panel_layout.addWidget(self._play_preview, alignment=Qt.AlignmentFlag.AlignLeft)
         self._discard = SecondaryButton("Discard capture", panel)
         self._discard.clicked.connect(self.discard_capture)
         self._discard.hide()
-        panel_layout.addWidget(self._discard, alignment=Qt.AlignmentFlag.AlignLeft)
         self._generate = PrimaryButton("Generate Standard Shape", panel)
         self._generate.clicked.connect(self._start_reconstruction)
         self._generate.hide()
-        panel_layout.addWidget(self._generate, alignment=Qt.AlignmentFlag.AlignLeft)
+        # A separate row avoids overlap with Qt's native video surface.
+        self._capture_actions = QWidget(panel)
+        self._capture_actions.setObjectName("captureActionRow")
+        action_layout = QHBoxLayout(self._capture_actions)
+        action_layout.setContentsMargins(0, 8, 0, 0)
+        action_layout.setSpacing(8)
+        action_layout.addWidget(self._play_preview)
+        action_layout.addWidget(self._discard)
+        action_layout.addWidget(self._generate)
+        action_layout.addStretch(1)
+        self._capture_actions.hide()
+        panel_layout.addWidget(self._capture_actions)
         layout.addWidget(panel)
         layout.addStretch(1)
         self._session.completed.connect(self._capture_completed)
@@ -403,6 +412,7 @@ class CaptureWorkspace(QWidget):
             self._workflow_description() if workflow_ready else self._workflow_unavailable_reason()
         )
         self._generate.show()
+        self._capture_actions.show()
 
     def _capture_failed(self, message: str) -> None:
         self._indicator.stop()
@@ -573,6 +583,7 @@ class CaptureWorkspace(QWidget):
         self._play_preview.hide()
         self._poster.hide()
         self._preview.hide()
+        self._capture_actions.hide()
         self._metadata.setText("Capture discarded. Select & Record to capture again.")
 
     reconstruction_ready = Signal(str)
