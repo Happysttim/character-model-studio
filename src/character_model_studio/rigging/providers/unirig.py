@@ -30,6 +30,7 @@ class UniRigProvider(RiggingProvider):
     """
 
     _TEXTURED_MERGE_TIMEOUT_SECONDS = 300
+    _STAGE_TIMEOUT_SECONDS = 300
 
     @property
     def name(self) -> str:
@@ -241,6 +242,7 @@ class UniRigProvider(RiggingProvider):
             1,
             4,
         )
+        self._set_flash_attention(paths, enabled=False)
         environment["UNIRIG_PRESERVE_INTERMEDIATE"] = "1"
         self._run_stage(
             ["run.py", "--task", "configs/task/quick_inference_skeleton_articulationxl_ar_256.yaml",
@@ -248,6 +250,7 @@ class UniRigProvider(RiggingProvider):
              "--npz_dir", str(intermediate)], paths, environment, cancellation, progress,
             "skeleton", "Generating skeleton on CUDA", 2, 4,
         )
+        self._set_flash_attention(paths, enabled=True)
         environment.pop("UNIRIG_PRESERVE_INTERMEDIATE", None)
         self._run_stage(
             ["run.py", "--task", "configs/task/quick_inference_unirig_skin.yaml",
@@ -276,13 +279,62 @@ class UniRigProvider(RiggingProvider):
             env={**os.environ, **environment}, stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace",
         )
+        deadline = time.monotonic() + self._STAGE_TIMEOUT_SECONDS
         while process.poll() is None:
             if cancellation.is_cancelled:
                 self._terminate_process_tree(process)
                 raise RuntimeError(f"UniRig {stage} was cancelled")
+            if time.monotonic() >= deadline:
+                self._terminate_process_tree(process)
+                raise RuntimeError(
+                    f"UniRig {stage} exceeded its five-minute time limit; "
+                    "the isolated provider process was stopped."
+                )
             time.sleep(0.1)
         if process.returncode != 0:
             detail = "" if process.stderr is None else process.stderr.read().strip()[-2000:]
             raise RuntimeError(f"UniRig {stage} failed: {detail}")
         if progress is not None:
             progress(RiggingProgress(stage, label, completed, total))
+
+    @staticmethod
+    def _set_flash_attention(paths: UniRigPaths, *, enabled: bool) -> None:
+        """Switch the isolated runtime backend between Skeleton and Skinning.
+
+        The upstream Skeleton dependency imports a Windows-incompatible Triton path
+        when FlashAttention is installed.  Skinning needs the compiled extension.
+        The wheel is a locally cached provider runtime artifact; no download occurs.
+        """
+        command = [str(paths.runtime_python), "-E", "-m", "pip"]
+        if not enabled:
+            result = subprocess.run(
+                [*command, "uninstall", "-y", "flash-attn"],
+                cwd=paths.source_directory,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+            )
+            if result.returncode not in {0, 1}:
+                raise RuntimeError(f"Unable to prepare UniRig Skeleton backend: {result.stderr}")
+            return
+        wheels = sorted((paths.model_cache / "runtime-wheels").glob("flash_attn-*.whl"))
+        if not wheels:
+            raise RuntimeError(
+                "UniRig Skinning requires a locally cached Windows FlashAttention wheel; "
+                "no online download was attempted."
+            )
+        result = subprocess.run(
+            [*command, "install", "--force-reinstall", "--no-deps", str(wheels[-1])],
+            cwd=paths.source_directory,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"Unable to prepare UniRig Skinning backend: {result.stderr}")
