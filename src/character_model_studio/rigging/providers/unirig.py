@@ -139,7 +139,13 @@ class UniRigProvider(RiggingProvider):
             errors="replace",
         )
         deadline = time.monotonic() + self._TEXTURED_MERGE_TIMEOUT_SECONDS
+        artifact_ready_at: float | None = None
         while process.poll() is None:
+            if output_glb.is_file() and output_glb.stat().st_size > 0:
+                artifact_ready_at = artifact_ready_at or time.monotonic()
+                if time.monotonic() - artifact_ready_at >= 2:
+                    self._terminate_process_tree(process)
+                    break
             if bool(cancellation.is_cancelled):
                 self._terminate_process_tree(process)
                 raise RuntimeError("UniRig textured rig merge was cancelled")
@@ -150,7 +156,7 @@ class UniRigProvider(RiggingProvider):
                     "the isolated provider process was stopped."
                 )
             time.sleep(0.1)
-        if process.returncode != 0:
+        if process.returncode not in {0, None} and not output_glb.is_file():
             detail = "" if process.stderr is None else process.stderr.read().strip()[-2000:]
             raise RuntimeError(f"UniRig textured rig merge failed: {detail}")
         report = RiggedModelValidator().validate(output_glb)
@@ -257,6 +263,7 @@ class UniRigProvider(RiggingProvider):
              "--input_dir", str(input_directory), "--output_dir", str(skin_output),
              "--npz_dir", str(intermediate)], paths, environment, cancellation, progress,
             "skinning", "Generating skinning weights on CUDA", 3, 4,
+            skin_output / "source" / "predict.fbx",
         )
         result = self.merge_textured_rig(
             skin_output / "source" / "predict.fbx",
@@ -271,6 +278,7 @@ class UniRigProvider(RiggingProvider):
         self, arguments: list[str], paths: UniRigPaths, environment: dict[str, str],
         cancellation: CancellationToken, progress: Callable[[RiggingProgress], None] | None,
         stage: str, label: str, completed: int, total: int,
+        completion_artifact: Path | None = None,
     ) -> None:
         if progress is not None:
             progress(RiggingProgress(stage, label, completed - 1, total))
@@ -280,7 +288,13 @@ class UniRigProvider(RiggingProvider):
             stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace",
         )
         deadline = time.monotonic() + self._STAGE_TIMEOUT_SECONDS
+        artifact_ready_at: float | None = None
         while process.poll() is None:
+            if completion_artifact is not None and completion_artifact.is_file():
+                artifact_ready_at = artifact_ready_at or time.monotonic()
+                if time.monotonic() - artifact_ready_at >= 2:
+                    self._terminate_process_tree(process)
+                    break
             if cancellation.is_cancelled:
                 self._terminate_process_tree(process)
                 raise RuntimeError(f"UniRig {stage} was cancelled")
@@ -291,7 +305,9 @@ class UniRigProvider(RiggingProvider):
                     "the isolated provider process was stopped."
                 )
             time.sleep(0.1)
-        if process.returncode != 0:
+        if process.returncode not in {0, None} and not (
+            completion_artifact is not None and completion_artifact.is_file()
+        ):
             detail = "" if process.stderr is None else process.stderr.read().strip()[-2000:]
             raise RuntimeError(f"UniRig {stage} failed: {detail}")
         if progress is not None:
