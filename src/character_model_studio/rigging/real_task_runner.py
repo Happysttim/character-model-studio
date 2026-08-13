@@ -35,9 +35,7 @@ class _Worker(QObject):
             rig = self._repository.create_rig_attempt(attempt.id, provider.name, "upstream-local")
             rig_id = rig.id
             self._repository.set_rig_attempt_status(rig_id, RigStatus.RIGGING)
-            output = self._repository.attempt_artifact_path(
-                attempt.id, f"rigs/{rig.id}/rigged.glb"
-            )
+            output = self._repository.attempt_artifact_path(attempt.id, f"rigs/{rig.id}/rigged.glb")
             work = self._repository.attempt_artifact_path(
                 attempt.id, f"rigs/{rig.id}/provider-work"
             )

@@ -82,9 +82,11 @@ class UniRigProvider(RiggingProvider):
                 True,
             )
         return ProviderReadiness(
-            self.name, ReadinessStatus.READY,
+            self.name,
+            ReadinessStatus.READY,
             "Isolated UniRig CUDA runtime and local skeleton/skinning checkpoints are ready.",
-            True, True,
+            True,
+            True,
         )
 
     def load(self) -> None:
@@ -211,8 +213,12 @@ class UniRigProvider(RiggingProvider):
         raise RuntimeError("UniRig requires an application-owned project artifact path")
 
     def rig_glb(
-        self, source_glb: Path, work_directory: Path, output_glb: Path,
-        cancellation: CancellationToken, progress: Callable[[RiggingProgress], None] | None = None,
+        self,
+        source_glb: Path,
+        work_directory: Path,
+        output_glb: Path,
+        cancellation: CancellationToken,
+        progress: Callable[[RiggingProgress], None] | None = None,
     ) -> Path:
         """Run the official local UniRig stages then preserve source GLB textures."""
         self.load()
@@ -235,10 +241,28 @@ class UniRigProvider(RiggingProvider):
             "HF_HUB_OFFLINE": "1",
         }
         self._run_stage(
-            ["-m", "src.data.extract", "--config", "configs/data/quick_inference.yaml",
-             "--require_suffix", "obj,fbx,FBX,dae,glb,gltf,vrm", "--force_override", "true",
-             "--num_runs", "1", "--id", "0", "--time", "app", "--faces_target_count", "50000",
-             "--input_dir", str(input_directory), "--output_dir", str(intermediate)],
+            [
+                "-m",
+                "src.data.extract",
+                "--config",
+                "configs/data/quick_inference.yaml",
+                "--require_suffix",
+                "obj,fbx,FBX,dae,glb,gltf,vrm",
+                "--force_override",
+                "true",
+                "--num_runs",
+                "1",
+                "--id",
+                "0",
+                "--time",
+                "app",
+                "--faces_target_count",
+                "50000",
+                "--input_dir",
+                str(input_directory),
+                "--output_dir",
+                str(intermediate),
+            ],
             paths,
             environment,
             cancellation,
@@ -251,19 +275,49 @@ class UniRigProvider(RiggingProvider):
         self._set_flash_attention(paths, enabled=False)
         environment["UNIRIG_PRESERVE_INTERMEDIATE"] = "1"
         self._run_stage(
-            ["run.py", "--task", "configs/task/quick_inference_skeleton_articulationxl_ar_256.yaml",
-             "--input_dir", str(input_directory), "--output_dir", str(skeleton_output),
-             "--npz_dir", str(intermediate)], paths, environment, cancellation, progress,
-            "skeleton", "Generating skeleton on CUDA", 2, 4,
+            [
+                "run.py",
+                "--task",
+                "configs/task/quick_inference_skeleton_articulationxl_ar_256.yaml",
+                "--input_dir",
+                str(input_directory),
+                "--output_dir",
+                str(skeleton_output),
+                "--npz_dir",
+                str(intermediate),
+            ],
+            paths,
+            environment,
+            cancellation,
+            progress,
+            "skeleton",
+            "Generating skeleton on CUDA",
+            2,
+            4,
             skeleton_output / "source" / "skeleton.fbx",
         )
         self._set_flash_attention(paths, enabled=True)
         environment.pop("UNIRIG_PRESERVE_INTERMEDIATE", None)
         self._run_stage(
-            ["run.py", "--task", "configs/task/quick_inference_unirig_skin.yaml",
-             "--input_dir", str(input_directory), "--output_dir", str(skin_output),
-             "--npz_dir", str(intermediate)], paths, environment, cancellation, progress,
-            "skinning", "Generating skinning weights on CUDA", 3, 4,
+            [
+                "run.py",
+                "--task",
+                "configs/task/quick_inference_unirig_skin.yaml",
+                "--input_dir",
+                str(input_directory),
+                "--output_dir",
+                str(skin_output),
+                "--npz_dir",
+                str(intermediate),
+            ],
+            paths,
+            environment,
+            cancellation,
+            progress,
+            "skinning",
+            "Generating skinning weights on CUDA",
+            3,
+            4,
             skin_output / "source" / "predict.fbx",
         )
         result = self.merge_textured_rig(
@@ -276,17 +330,29 @@ class UniRigProvider(RiggingProvider):
         return result
 
     def _run_stage(
-        self, arguments: list[str], paths: UniRigPaths, environment: dict[str, str],
-        cancellation: CancellationToken, progress: Callable[[RiggingProgress], None] | None,
-        stage: str, label: str, completed: int, total: int,
+        self,
+        arguments: list[str],
+        paths: UniRigPaths,
+        environment: dict[str, str],
+        cancellation: CancellationToken,
+        progress: Callable[[RiggingProgress], None] | None,
+        stage: str,
+        label: str,
+        completed: int,
+        total: int,
         completion_artifact: Path | None = None,
     ) -> None:
         if progress is not None:
             progress(RiggingProgress(stage, label, completed - 1, total))
         process = subprocess.Popen(
-            [str(paths.runtime_python), "-E", *arguments], cwd=paths.source_directory,
-            env={**os.environ, **environment}, stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace",
+            [str(paths.runtime_python), "-E", *arguments],
+            cwd=paths.source_directory,
+            env={**os.environ, **environment},
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
         )
         deadline = time.monotonic() + self._STAGE_TIMEOUT_SECONDS
         artifact_ready_at: float | None = None
