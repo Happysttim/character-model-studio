@@ -131,11 +131,13 @@ class UniRigProvider(RiggingProvider):
         )
         if progress is not None:
             progress(RiggingProgress("texture_merge", "Preserving textured source GLB", 0, 2))
+        log_path = output_glb.parent / "unirig-texture-merge.log"
+        log_file = log_path.open("w", encoding="utf-8", errors="replace")
         process = subprocess.Popen(
             command,
             cwd=paths.source_directory,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
             text=True,
             encoding="utf-8",
             errors="replace",
@@ -150,8 +152,8 @@ class UniRigProvider(RiggingProvider):
                         self._terminate_process_tree(process)
                     break
             elif process.poll() is not None and process.returncode != 0:
-                detail = "" if process.stderr is None else process.stderr.read().strip()[-2000:]
-                raise RuntimeError(f"UniRig textured rig merge failed: {detail}")
+                log_file.flush()
+                raise RuntimeError(f"UniRig textured rig merge failed; see {log_path.name}")
             if bool(cancellation.is_cancelled):
                 self._terminate_process_tree(process)
                 raise RuntimeError("UniRig textured rig merge was cancelled")
@@ -162,6 +164,7 @@ class UniRigProvider(RiggingProvider):
                     "the isolated provider process was stopped."
                 )
             time.sleep(0.1)
+        log_file.close()
         report = RiggedModelValidator().validate(output_glb)
         if not report.acceptable:
             raise RuntimeError(f"Merged rigged GLB failed validation: {report.failures}")
@@ -346,12 +349,20 @@ class UniRigProvider(RiggingProvider):
     ) -> None:
         if progress is not None:
             progress(RiggingProgress(stage, label, completed - 1, total))
+        log_directory = (
+            paths.model_cache / "logs"
+            if completion_artifact is None
+            else completion_artifact.parent
+        )
+        log_directory.mkdir(parents=True, exist_ok=True)
+        log_path = log_directory / f"unirig-{stage}.log"
+        log_file = log_path.open("w", encoding="utf-8", errors="replace")
         process = subprocess.Popen(
             [str(paths.runtime_python), "-E", *arguments],
             cwd=paths.source_directory,
             env={**os.environ, **environment},
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
             text=True,
             encoding="utf-8",
             errors="replace",
@@ -367,16 +378,16 @@ class UniRigProvider(RiggingProvider):
                     break
             elif completion_artifact is None and process.poll() is not None:
                 if process.returncode != 0:
-                    detail = "" if process.stderr is None else process.stderr.read().strip()[-2000:]
-                    raise RuntimeError(f"UniRig {stage} failed: {detail}")
+                    log_file.flush()
+                    raise RuntimeError(f"UniRig {stage} failed; see {log_path.name}")
                 break
             elif (
                 completion_artifact is not None
                 and process.poll() is not None
                 and process.returncode != 0
             ):
-                detail = "" if process.stderr is None else process.stderr.read().strip()[-2000:]
-                raise RuntimeError(f"UniRig {stage} failed: {detail}")
+                log_file.flush()
+                raise RuntimeError(f"UniRig {stage} failed; see {log_path.name}")
             if cancellation.is_cancelled:
                 self._terminate_process_tree(process)
                 raise RuntimeError(f"UniRig {stage} was cancelled")
@@ -387,6 +398,7 @@ class UniRigProvider(RiggingProvider):
                     "the isolated provider process was stopped."
                 )
             time.sleep(0.1)
+        log_file.close()
         if progress is not None:
             progress(RiggingProgress(stage, label, completed, total))
 
