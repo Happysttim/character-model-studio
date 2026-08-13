@@ -55,6 +55,21 @@ def test_rig_validator_rejects_missing_skin(tmp_path) -> None:
     assert "no skin" in report.failures[0].lower()
 
 
+def test_unirig_textured_merge_command_uses_isolated_runtime_and_explicit_assets(tmp_path) -> None:
+    """The adapter must transfer onto the original GLB, never a textureless FBX export."""
+    runtime = tmp_path / "unirig-python.exe"
+    skinning = tmp_path / "predict.fbx"
+    source = tmp_path / "textured-source.glb"
+    output = tmp_path / "rigged.glb"
+
+    command = UniRigProvider._merge_command(runtime, skinning, source, output)
+
+    assert command[:4] == [str(runtime), "-E", "-m", "src.inference.merge"]
+    assert command[command.index("--source") + 1] == str(skinning)
+    assert command[command.index("--target") + 1] == str(source)
+    assert command[command.index("--output") + 1] == str(output)
+
+
 def test_unirig_probe_never_downloads_or_loads_weights() -> None:
     """The optional provider is a local readiness check, not an implicit network action."""
     readiness = UniRigProvider().probe()

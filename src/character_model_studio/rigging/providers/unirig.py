@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
+import subprocess
+import time
 
 from character_model_studio.app.capabilities import (
     ProviderReadiness,
@@ -13,6 +16,7 @@ from character_model_studio.common.cancellation import CancellationToken
 from character_model_studio.rigging.interfaces import RiggingProvider
 from character_model_studio.rigging.models import RiggingProgress
 from character_model_studio.rigging.unirig_paths import resolve_unirig_paths
+from character_model_studio.validation.rigged_model import RiggedModelValidator
 
 
 class UniRigProvider(RiggingProvider):
@@ -82,6 +86,87 @@ class UniRigProvider(RiggingProvider):
 
     def unload(self) -> None:
         """No provider is loaded until the external CUDA adapter is smoke-tested."""
+
+    def merge_textured_rig(
+        self,
+        skinning_fbx: Path,
+        textured_source_glb: Path,
+        output_glb: Path,
+        cancellation: CancellationToken,
+        progress: Callable[[RiggingProgress], None] | None = None,
+    ) -> Path:
+        """Transfer UniRig bones/weights onto the original textured GLB.
+
+        UniRig's direct skinning export is FBX and can omit source materials.  Its
+        upstream transfer utility instead imports the original GLB and applies the
+        generated armature and weights, preserving the original material/image
+        references.  This method intentionally runs in UniRig's isolated runtime.
+        """
+        readiness = self.probe()
+        if not readiness.adapter_installed or not readiness.vram_eligible:
+            raise RuntimeError(f"{readiness.status}: {readiness.reason}")
+        if not skinning_fbx.is_file():
+            raise FileNotFoundError(f"UniRig skinning output was not found: {skinning_fbx}")
+        if not textured_source_glb.is_file():
+            raise FileNotFoundError(f"Textured source GLB was not found: {textured_source_glb}")
+        if textured_source_glb.suffix.lower() != ".glb":
+            raise ValueError("Textured source asset must be a GLB file")
+        if cancellation.is_cancelled:
+            raise RuntimeError("UniRig textured rig merge was cancelled before start")
+
+        output_glb.parent.mkdir(parents=True, exist_ok=True)
+        paths = resolve_unirig_paths()
+        command = self._merge_command(paths.runtime_python, skinning_fbx, textured_source_glb, output_glb)
+        if progress is not None:
+            progress(RiggingProgress("texture_merge", "Preserving textured source GLB", 0, 2))
+        process = subprocess.Popen(
+            command,
+            cwd=paths.source_directory,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        while process.poll() is None:
+            if cancellation.is_cancelled:
+                process.terminate()
+                process.wait(timeout=15)
+                raise RuntimeError("UniRig textured rig merge was cancelled")
+            time.sleep(0.1)
+        if process.returncode != 0:
+            detail = "" if process.stderr is None else process.stderr.read().strip()[-2000:]
+            raise RuntimeError(f"UniRig textured rig merge failed: {detail}")
+        report = RiggedModelValidator().validate(output_glb)
+        if not report.acceptable:
+            raise RuntimeError(f"Merged rigged GLB failed validation: {report.failures}")
+        if progress is not None:
+            progress(RiggingProgress("texture_merge", "Textured rigged GLB validated", 2, 2))
+        return output_glb
+
+    @staticmethod
+    def _merge_command(
+        runtime_python: Path, skinning_fbx: Path, textured_source_glb: Path, output_glb: Path
+    ) -> list[str]:
+        """Build the upstream transfer command without embedding local paths."""
+        return [
+            str(runtime_python),
+            "-E",
+            "-m",
+            "src.inference.merge",
+            "--require_suffix",
+            "glb",
+            "--num_runs",
+            "1",
+            "--id",
+            "0",
+            "--source",
+            str(skinning_fbx),
+            "--target",
+            str(textured_source_glb),
+            "--output",
+            str(output_glb),
+        ]
 
     def rig(
         self,
