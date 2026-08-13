@@ -26,6 +26,7 @@ class RigWorkspace(QWidget):
         super().__init__(parent)
         self._context = context
         self.definition = definition
+        self._active = False
         self._viewport: ModelViewport | None = None
         self._runner = RealRiggingTaskRunner()
         self._runner.progress.connect(self._show_progress)
@@ -64,25 +65,19 @@ class RigWorkspace(QWidget):
         viewer_layout.addWidget(self._summary)
         viewer_layout.addWidget(self._viewer_host, stretch=1)
         layout.addWidget(viewer_panel, stretch=1)
+        self._refresh_readiness()
+
+    def activate(self) -> None:
+        """Create the native VTK surface only after the visible Rig tab is entered."""
+        self._active = True
         self.refresh()
 
     def refresh(self) -> None:
         """Refresh the optional provider status and reopen the newest completed rig."""
-        readiness = UniRigProvider().probe()
-        self._provider_status.label.setText(f"UniRig — {readiness.status}")
-        self._provider_detail.setText(readiness.reason)
+        self._refresh_readiness()
+        if not self._active:
+            return
         repository = self._context.repository
-        accepted = repository.latest_accepted_attempt() if repository is not None else None
-        self._create_rig.setEnabled(
-            not self._runner.is_running
-            and readiness.status.value == "READY"
-            and accepted is not None
-        )
-        self._create_rig.setToolTip(
-            "Create a CUDA rig from the newest accepted GLB"
-            if self._create_rig.isEnabled()
-            else "Accept a GLB in Review and configure the local UniRig runtime first."
-        )
         if repository is None:
             return
         rigs = [rig for rig in repository.list_rig_attempts() if rig.rigged_relative_path]
@@ -101,6 +96,24 @@ class RigWorkspace(QWidget):
         self._summary.setText(
             f"{rig.provider}: {metadata.vertex_count} vertices, {metadata.face_count} faces. "
             f"Skeleton overlay: {'available' if overlay else 'unavailable'}.{fixture_note}"
+        )
+
+    def _refresh_readiness(self) -> None:
+        """Update readiness controls without initializing the OpenGL-backed viewer."""
+        readiness = UniRigProvider().probe()
+        self._provider_status.label.setText(f"UniRig — {readiness.status}")
+        self._provider_detail.setText(readiness.reason)
+        repository = self._context.repository
+        accepted = repository.latest_accepted_attempt() if repository is not None else None
+        self._create_rig.setEnabled(
+            not self._runner.is_running
+            and readiness.status.value == "READY"
+            and accepted is not None
+        )
+        self._create_rig.setToolTip(
+            "Create a CUDA rig from the newest accepted GLB"
+            if self._create_rig.isEnabled()
+            else "Accept a GLB in Review and configure the local UniRig runtime first."
         )
 
     def _start_rigging(self) -> None:

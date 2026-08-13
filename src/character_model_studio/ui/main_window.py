@@ -118,6 +118,8 @@ class MainWindow(QMainWindow):
             current_workspace.activate()
         if isinstance(current_workspace, AnimateWorkspace):
             current_workspace.activate()
+        if isinstance(current_workspace, RigWorkspace):
+            current_workspace.activate()
         if isinstance(current_workspace, ProjectsWorkspace):
             current_workspace.refresh()
         definition = next(item for item in WORKSPACES if item.key == destination)
