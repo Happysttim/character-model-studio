@@ -15,7 +15,9 @@ class _Worker(QObject):
     completed = Signal(str)
     failed = Signal(str)
 
-    def __init__(self, repository: LocalRepository, attempt_id: str, token: CancellationToken) -> None:
+    def __init__(
+        self, repository: LocalRepository, attempt_id: str, token: CancellationToken
+    ) -> None:
         super().__init__()
         self._repository = repository
         self._attempt_id = attempt_id
@@ -32,7 +34,9 @@ class _Worker(QObject):
             output = self._repository.attempt_artifact_path(
                 attempt.id, f"rigs/{rig.id}/rigged.glb"
             )
-            work = self._repository.attempt_artifact_path(attempt.id, f"rigs/{rig.id}/provider-work")
+            work = self._repository.attempt_artifact_path(
+                attempt.id, f"rigs/{rig.id}/provider-work"
+            )
             result = provider.rig_glb(
                 self._repository.projects_root / attempt.model_relative_path,
                 work,
@@ -43,7 +47,7 @@ class _Worker(QObject):
             report = RiggedModelValidator().validate(result)
             if not report.acceptable:
                 raise RuntimeError(f"Rig validation failed: {report.failures}")
-            self._repository.complete_rig_attempt(rig.id, result, report.metrics)
+            self._repository.complete_rig_attempt(rig.id, result, dict(report.metrics))
             self._repository.persist_rig_validation_report(rig.id, report)
             self.completed.emit(rig.id)
         except (OSError, RuntimeError, ValueError, KeyError) as error:

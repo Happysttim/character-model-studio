@@ -232,7 +232,14 @@ class UniRigProvider(RiggingProvider):
              "--require_suffix", "obj,fbx,FBX,dae,glb,gltf,vrm", "--force_override", "true",
              "--num_runs", "1", "--id", "0", "--time", "app", "--faces_target_count", "50000",
              "--input_dir", str(input_directory), "--output_dir", str(intermediate)],
-            paths, environment, cancellation, progress, "prepare", "Preparing UniRig mesh input", 1, 4,
+            paths,
+            environment,
+            cancellation,
+            progress,
+            "prepare",
+            "Preparing UniRig mesh input",
+            1,
+            4,
         )
         environment["UNIRIG_PRESERVE_INTERMEDIATE"] = "1"
         self._run_stage(
@@ -249,7 +256,11 @@ class UniRigProvider(RiggingProvider):
             "skinning", "Generating skinning weights on CUDA", 3, 4,
         )
         result = self.merge_textured_rig(
-            skin_output / "source" / "predict.fbx", copied_source, output_glb, cancellation, progress
+            skin_output / "source" / "predict.fbx",
+            copied_source,
+            output_glb,
+            cancellation,
+            progress,
         )
         return result
 

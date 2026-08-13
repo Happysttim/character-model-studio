@@ -6,8 +6,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from character_model_studio.app.bootstrap import ApplicationContext
-from character_model_studio.rigging.real_task_runner import RealRiggingTaskRunner
 from character_model_studio.rigging.providers.unirig import UniRigProvider
+from character_model_studio.rigging.real_task_runner import RealRiggingTaskRunner
 from character_model_studio.ui.views.workspace import WorkspaceDefinition
 from character_model_studio.ui.widgets.controls import SecondaryButton, StatusIndicator
 from character_model_studio.ui.widgets.glass import GlassPanel
