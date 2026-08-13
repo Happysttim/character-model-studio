@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from pathlib import Path
 import subprocess
 import time
+from collections.abc import Callable
+from pathlib import Path
 
 from character_model_studio.app.capabilities import (
     ProviderReadiness,
@@ -116,7 +116,9 @@ class UniRigProvider(RiggingProvider):
 
         output_glb.parent.mkdir(parents=True, exist_ok=True)
         paths = resolve_unirig_paths()
-        command = self._merge_command(paths.runtime_python, skinning_fbx, textured_source_glb, output_glb)
+        command = self._merge_command(
+            paths.runtime_python, skinning_fbx, textured_source_glb, output_glb
+        )
         if progress is not None:
             progress(RiggingProgress("texture_merge", "Preserving textured source GLB", 0, 2))
         process = subprocess.Popen(
