@@ -59,7 +59,7 @@ Optional ONNX Runtime may be used for lightweight auxiliary models only when CUD
 Provider-based Python adapters.
 
 - Default reference: SkinTokens / TokenRig.
-- Alternate candidate: Instance-Rig in an isolated TensorFlow runtime.
+- Alternate candidate: UniRig.
 
 Rigging provider output must include or be convertible into:
 

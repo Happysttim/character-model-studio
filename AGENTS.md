@@ -78,7 +78,7 @@ Provider compatibility must be proven, not assumed:
 - Hunyuan3D 2.0 is the default reconstruction provider.
 - Hunyuan3D 2.1 is an optional high-quality provider. Its upstream tested lane is Python 3.10 + PyTorch 2.5.1+cu124, so compatibility with the project's Python 3.11 runtime must be smoke-tested before it is enabled.
 - SkinTokens / TokenRig is the default maximum-scope auto-rigging reference provider and currently requires Python 3.11+, CUDA Toolkit 12.1+, and an NVIDIA GPU with at least 14 GB VRAM for inference.
-- Instance-Rig may be implemented as a lower-footprint alternate provider in an isolated runtime. Its TensorFlow runtime must detect CUDA; CPU auto-rigging is forbidden.
+- UniRig may be implemented as an alternate rigging provider, but no product VRAM threshold may be invented for it without a reproducible local smoke test or an authoritative upstream requirement.
 
 The application remains one local Python desktop application. Do not silently introduce a hidden HTTP backend or service to solve dependency conflicts.
 
@@ -203,7 +203,7 @@ Default/optional provider policy:
 - Experimental multi-view textured reconstruction: Hunyuan3D-2GP. It uses Hunyuan3D-2mv Shape followed by Delight/Paint Texture, accepts three or four isolated chronological views, and never replaces the Standard default.
 - High-quality reconstruction: Hunyuan3D 2.1.
 - Default auto-rigging reference: SkinTokens / TokenRig.
-- Alternate rigging provider candidate: Instance-Rig, only after an isolated CUDA smoke test.
+- Alternate rigging provider candidate: UniRig.
 
 The UI and project model must not need rewriting when a provider changes.
 

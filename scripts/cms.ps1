@@ -5,7 +5,6 @@ param(
         'bootstrap', 'run', 'format', 'lint', 'typecheck', 'test', 'test-ui', 'test-storage',
         'test-capture', 'test-ai-mock', 'test-provider-compatibility', 'test-gpu',
         'test-segmentation', 'download-segmentation-model', 'test-sf3d', 'test-sf3d-workflow',
-        'test-instance-rig',
         'test-reconstruction', 'test-rigging', 'test-animation', 'test-model-validation',
         'test-rigged-model-validation', 'test-integration', 'build', 'package', 'verify'
     )]
@@ -53,7 +52,6 @@ try {
         'test-segmentation' { Invoke-ProjectPython @('-m', 'character_model_studio.tools.segmentation_smoke') }
         'test-sf3d' { Invoke-ProjectPython @('-m', 'character_model_studio.tools.sf3d_smoke') }
         'test-sf3d-workflow' { Invoke-ProjectPython @('-m', 'character_model_studio.tools.sf3d_workflow_smoke') }
-        'test-instance-rig' { Invoke-ProjectPython @('-m', 'character_model_studio.tools.instance_rig_smoke') }
         'download-segmentation-model' {
             Invoke-ProjectPython @('-m', 'character_model_studio.tools.download_segmentation_model')
         }

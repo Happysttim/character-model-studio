@@ -105,7 +105,7 @@ Reference provider constraints:
 - Hunyuan3D 2.1: optional High Quality provider; upstream tested with Python 3.10 + PyTorch 2.5.1+cu124 and reports ~10 GB Shape, ~21 GB Texture, ~29 GB combined Shape + Texture.
 - Hunyuan3D-2GP: optional experimental multi-view provider. It uses Hunyuan3D-2mv Shape and Delight/Paint Texture, requires a verified `transformers==4.49.0` lane, `mmgp`, rebuilt `mesh_processor`/`custom_rasterizer_kernel` extensions, local checkpoints, and at least 12 GiB total VRAM for the validated experimental path.
 - SkinTokens / TokenRig: default maximum-scope auto-rigging reference; upstream requires Python >= 3.11, CUDA Toolkit >= 12.1, and at least 14 GB NVIDIA GPU memory for inference.
-- Instance-Rig: allowed isolated alternate rigging provider. It requires a local BodyPix cache and a TensorFlow CUDA device; CPU auto-rigging is forbidden.
+- UniRig: allowed alternate rigging provider; upstream documents Python 3.11 and PyTorch >= 2.3.1, but the product must not invent a VRAM threshold without evidence.
 
 If a provider cannot initialize in the project runtime, report:
 
@@ -170,7 +170,7 @@ It must verify, within the actual project environment:
 - Hunyuan3D 2.0 provider initialization or the earliest safe smoke point;
 - optional Hunyuan3D 2.1 adapter import and initialization when installed;
 - SkinTokens/TokenRig adapter import and initialization when installed/eligible;
-- optional Instance-Rig adapter import and initialization when its isolated CUDA runtime is ready;
+- optional UniRig adapter import and initialization when installed;
 - custom native extensions required by an enabled provider;
 - PySide6 + VTK/PyVista still import successfully in the same environment;
 - the selected PyTorch/CUDA build is the one actually used by providers.
@@ -339,7 +339,7 @@ NVIDIA GPU VRAM >= 14 GB
 
 plus its documented software requirements.
 
-Alternate providers such as Instance-Rig must advertise their own verified capabilities. Do not reuse the SkinTokens threshold for them automatically.
+Alternate providers such as UniRig must advertise their own verified capabilities. Do not reuse the SkinTokens threshold for them automatically.
 
 ---
 

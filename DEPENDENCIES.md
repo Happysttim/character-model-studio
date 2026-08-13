@@ -17,7 +17,7 @@ Provider facts in this document were verified against upstream documentation on 
 | High-quality reconstruction | Hunyuan3D 2.1 adapter | Optional higher-VRAM/PBR quality mode |
 | Experimental multi-view reconstruction | Hunyuan3D-2GP adapter | Explicit multi-view Shape + Texture lane; never replaces Standard |
 | Auto rigging | SkinTokens / TokenRig adapter | Default maximum-scope skeleton + skinning provider |
-| Alternate auto rigging | Instance-Rig adapter | Isolated TensorFlow provider; enable only after CUDA device smoke proof |
+| Alternate auto rigging | UniRig adapter | Optional provider; enable only after local compatibility/VRAM proof |
 | 3D model processing | trimesh | GLB parsing, geometry inspection, normalization/export |
 | glTF rig/animation data | pygltflib or equivalent pure-Python glTF layer | Skins, joints, animation channels and serialization |
 | Animation math | NumPy + SciPy rotation tools or equivalent tested quaternion utilities | Local transforms, SLERP, interpolation, LBS helpers |
@@ -51,7 +51,7 @@ The maximum-scope project needs one application runtime that can host desktop, r
 Start Phase 00 from **CPython 3.11.x** because:
 
 - SkinTokens currently requires Python >= 3.11;
-- Instance-Rig supports Python 3.11 in an isolated runtime;
+- UniRig documents Python 3.11;
 - the application must eventually support rigging/animation, not only static reconstruction.
 
 ### Hunyuan3D 2.0
@@ -101,11 +101,11 @@ Its current upstream prerequisites include:
 
 Treat these as provider-specific requirements, not universal rigging requirements.
 
-### Instance-Rig
+### UniRig
 
-Instance-Rig is an allowed alternate provider. It uses TensorFlow, BodyPix and Open3D in an isolated runtime.
+UniRig is an allowed alternate provider and documents Python 3.11 plus PyTorch >= 2.3.1.
 
-Do **not** hard-code an Instance-Rig VRAM threshold unless a current authoritative upstream requirement exists or the project records a reproducible real-device smoke test. Its TensorFlow runtime must expose a CUDA device; CPU fallback is forbidden.
+Do **not** hard-code a UniRig VRAM threshold unless a current authoritative upstream requirement exists or the project records a reproducible real-device smoke test. Provider capability can override the default SkinTokens lane only with evidence.
 
 ## PyTorch/CUDA version policy
 
@@ -119,7 +119,7 @@ Phase 00 must establish and record a reproducible compatibility matrix covering:
 - Hunyuan3D 2.0;
 - optional Hunyuan3D 2.1;
 - SkinTokens/TokenRig;
-- optional Instance-Rig isolated runtime;
+- optional UniRig;
 - custom rasterizers / flash-attn / sparse-convolution extensions when used;
 - PySide6;
 - VTK/PyVista;

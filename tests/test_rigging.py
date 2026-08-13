@@ -6,8 +6,8 @@ from pygltflib import GLTF2
 
 from character_model_studio.common.cancellation import CancellationToken
 from character_model_studio.reconstruction.mock import MockReconstructionProvider
-from character_model_studio.rigging.providers.instance_rig import InstanceRigProvider
 from character_model_studio.rigging.providers.mock import MockRiggingProvider
+from character_model_studio.rigging.providers.unirig import UniRigProvider
 from character_model_studio.storage.database import initialize_database
 from character_model_studio.storage.repositories import LocalRepository
 from character_model_studio.validation.model import ValidationStatus
@@ -55,11 +55,11 @@ def test_rig_validator_rejects_missing_skin(tmp_path) -> None:
     assert "no skin" in report.failures[0].lower()
 
 
-def test_instance_rig_probe_never_downloads_or_loads_weights() -> None:
+def test_unirig_probe_never_downloads_or_loads_weights() -> None:
     """The optional provider is a local readiness check, not an implicit network action."""
-    readiness = InstanceRigProvider().probe()
+    readiness = UniRigProvider().probe()
 
-    assert readiness.provider == "Instance-Rig"
+    assert readiness.provider == "UniRig"
     assert readiness.status.value in {
         "READY",
         "NOT_INSTALLED",
