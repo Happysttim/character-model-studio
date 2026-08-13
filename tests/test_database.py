@@ -47,7 +47,7 @@ def test_failed_rig_attempt_keeps_the_accepted_source(tmp_path: Path) -> None:
     write_fixture_rigged_glb(source)
     repository = LocalRepository(database_path, tmp_path / "Projects")
     attempt = repository.import_glb_for_review(source)
-    repository.accept_attempt(attempt.id)
+    repository.decide(attempt.id, accepted=True)
 
     rig = repository.create_rig_attempt(attempt.id, "UniRig", "upstream-local")
     repository.set_rig_attempt_status(rig.id, RigStatus.RIGGING)
