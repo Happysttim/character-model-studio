@@ -75,6 +75,17 @@ class AnimateWorkspace(QWidget):
         self._status.setText(f"Loaded validated rig with {len(bones)} editable bones.")
         self._sync_editor()
 
+    def reset_loaded_rig(self) -> None:
+        """Discard stale pose state when a different static GLB enters review."""
+        self.stop_playback()
+        self._rig = None
+        self._rotations.clear()
+        self._from_pose = None
+        self._to_pose = None
+        self._bone.clear()
+        self._set_controls_enabled(False)
+        self._status.setText("A new model was loaded. Complete Rig before editing animation.")
+
     def _build(self) -> None:
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)

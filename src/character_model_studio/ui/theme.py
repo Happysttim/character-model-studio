@@ -130,15 +130,20 @@ def application_stylesheet(tokens: ThemeTokens = TOKENS) -> str:
             border-color: rgba(255, 232, 218, 0.08);
             color: {tokens.text_muted};
         }}
-        QLineEdit {{
-            background-color: rgba(16, 12, 11, 0.42);
+        QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QListWidget {{
+            background-color: rgba(255, 250, 244, 0.94);
             border: 1px solid {tokens.border_soft};
             border-radius: 6px;
-            color: {tokens.text_primary};
+            color: #2A1710;
             min-height: 30px;
             padding: 0 9px;
             selection-background-color: {tokens.terracotta};
         }}
+        QComboBox QAbstractItemView, QListWidget::item {{
+            background-color: #FFF8F0; color: #2A1710;
+            selection-background-color: {tokens.apricot}; selection-color: #2A1710;
+        }}
+        QListWidget::item {{ padding: 8px; border-bottom: 1px solid {tokens.border_soft}; }}
         QPlainTextEdit#processingLog {{
             background-color: rgba(255, 250, 244, 0.82);
             border: 1px solid {tokens.border_soft};

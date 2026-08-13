@@ -221,11 +221,13 @@ class MainWindow(QMainWindow):
                 view.project_opened.connect(self._open_project)
             elif definition.key == "animate":
                 view = AnimateWorkspace(self._context, self._workspace_stack)
+                self._animate_workspace = view
             elif definition.key == "diagnostics":
                 view = DiagnosticsWorkspace(self._context, self._workspace_stack)
                 view.reduce_motion.toggled.connect(self._set_reduce_motion)
             elif definition.key == "rig":
                 view = RigWorkspace(self._context, definition, self._workspace_stack)
+                self._rig_workspace = view
             else:
                 view = WorkspaceView(definition, self._workspace_stack)
             index = self._workspace_stack.addWidget(view)
@@ -244,6 +246,8 @@ class MainWindow(QMainWindow):
         return workspace
 
     def _open_review_attempt(self, attempt_id: str) -> None:
+        self._rig_workspace.reset_loaded_rig()
+        self._animate_workspace.reset_loaded_rig()
         self._review_workspace.load_attempt(attempt_id)
         self.navigate("review")
 

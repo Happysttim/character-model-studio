@@ -72,6 +72,14 @@ class RigWorkspace(QWidget):
         self._active = True
         self.refresh()
 
+    def reset_loaded_rig(self) -> None:
+        """Clear stale viewer data after a different GLB enters review."""
+        if self._viewport is not None:
+            self._viewport.close()
+            self._viewport.deleteLater()
+            self._viewport = None
+        self._summary.setText("A new model was loaded. Create or reopen its rig.")
+
     def refresh(self) -> None:
         """Refresh the optional provider status and reopen the newest completed rig."""
         self._refresh_readiness()
