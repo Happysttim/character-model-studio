@@ -271,6 +271,7 @@ class UniRigProvider(RiggingProvider):
             "Preparing UniRig mesh input",
             1,
             4,
+            intermediate / "source" / "raw_data.npz",
         )
         self._set_flash_attention(paths, enabled=False)
         environment["UNIRIG_PRESERVE_INTERMEDIATE"] = "1"
