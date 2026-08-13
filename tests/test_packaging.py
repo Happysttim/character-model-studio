@@ -16,6 +16,16 @@ def test_packaging_recipe_keeps_model_cache_outside_distribution() -> None:
     assert "weights" in recipe.lower()
 
 
+def test_frozen_entry_uses_an_absolute_package_import() -> None:
+    """A PyInstaller script is top-level, so package-relative imports would fail."""
+    entry = Path("packaging/frozen_entry.py").read_text(encoding="utf-8")
+
+    assert "from character_model_studio.main import run" in entry
+    assert "character_model_studio" in Path("packaging/character_model_studio.spec").read_text(
+        encoding="utf-8"
+    )
+
+
 def test_frozen_texture_lane_requires_explicit_child_runtime(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

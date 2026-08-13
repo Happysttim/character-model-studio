@@ -16,7 +16,11 @@ for package in ("pyvista", "pyvistaqt", "vtkmodules"):
     binaries += collect_dynamic_libs(package)
 
 a = Analysis(
-    [str(project_root / "src" / "character_model_studio" / "__main__.py")],
+    # PyInstaller executes an entry file as a top-level module.  The package's
+    # ``__main__.py`` deliberately uses a relative import for ``python -m`` and
+    # would therefore fail in a frozen top-level context.  This entry uses an
+    # absolute package import instead.
+    [str(project_root / "packaging" / "frozen_entry.py")],
     pathex=[str(project_root / "src")],
     binaries=binaries,
     datas=datas,
