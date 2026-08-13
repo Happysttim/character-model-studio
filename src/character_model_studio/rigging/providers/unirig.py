@@ -112,6 +112,9 @@ class UniRigProvider(RiggingProvider):
         generated armature and weights, preserving the original material/image
         references.  This method intentionally runs in UniRig's isolated runtime.
         """
+        skinning_fbx = skinning_fbx.resolve()
+        textured_source_glb = textured_source_glb.resolve()
+        output_glb = output_glb.resolve()
         readiness = self.probe()
         if not readiness.adapter_installed or not readiness.vram_eligible:
             raise RuntimeError(f"{readiness.status}: {readiness.reason}")
@@ -226,6 +229,9 @@ class UniRigProvider(RiggingProvider):
     ) -> Path:
         """Run the official local UniRig stages then preserve source GLB textures."""
         self.load()
+        source_glb = source_glb.resolve()
+        work_directory = work_directory.resolve()
+        output_glb = output_glb.resolve()
         if not source_glb.is_file():
             raise FileNotFoundError(f"Accepted source GLB was not found: {source_glb}")
         paths = resolve_unirig_paths()
