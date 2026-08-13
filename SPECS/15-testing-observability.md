@@ -40,6 +40,7 @@ Record:
 - total/free/peak VRAM when available;
 - output file size;
 - validation status.
+- child-process exit status and final output existence when a provider uses local process isolation.
 
 For rigging attempts also record:
 
@@ -74,4 +75,5 @@ Saved poses/animations linked to an accepted rig must not be deleted because a l
 - integration: local workflow with mock providers;
 - Windows manual/automation: capture and DPI;
 - GPU smoke: real Standard reconstruction, optional High Quality, rigging provider readiness;
+- experimental multi-view GPU smoke: CUDA Shape plus CUDA Texture with a textured GLB assertion before enabling Hunyuan3D-2GP;
 - packaging smoke: clean machine/account launch and fixture rig/animation editing.

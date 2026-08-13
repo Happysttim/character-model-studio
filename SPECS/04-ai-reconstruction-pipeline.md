@@ -97,6 +97,23 @@ Do not disable Standard Shape merely because the GPU cannot run Standard Texture
 
 Stable Fast 3D is an explicit opt-in alternative that generates Shape and texture together from one isolated RGBA input. It must resolve its SF3D, DINOv2, and CLIP weights from local caches only, run on CUDA, and persist a textured GLB plus the normal validation report. It does not replace Hunyuan3D 2.0 Standard mode.
 
+## Experimental multi-view textured mode — Hunyuan3D-2GP
+
+Hunyuan3D-2GP is an explicit opt-in provider for a captured character turntable. It receives at least three, and normally four, isolated RGBA views selected from distinct chronological parts of the capture. The chronological labels (`front`, `left`, `back`, `right`) are provenance labels, not an unverified visual-direction classifier.
+
+```text
+isolated multi-view RGBA inputs
+→ Hunyuan3D-2mv Shape on CUDA
+→ save temporary Shape GLB and unload Shape
+→ Delight on CUDA → unload Delight
+→ Paint on CUDA → UV bake / inpaint
+→ textured GLB
+```
+
+All checkpoints resolve from configured local cache paths. Local directories must be accepted directly by provider loaders; a Windows path must never be sent to a Hugging Face repo-ID resolver. The optional provider becomes available only after local files, `transformers==4.49.0`, `mmgp`, native extensions, and CUDA Shape/Texture smoke tests pass.
+
+The Paint/UV stage runs in an application-owned local Python child process. The parent desktop process provides progress/cancellation and validates the child output; no server, remote worker, or CPU fallback is introduced.
+
 ## High Quality mode — Hunyuan3D 2.1
 
 This is an **optional user-selected mode**.

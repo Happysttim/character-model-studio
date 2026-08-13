@@ -48,6 +48,9 @@ Provider code is isolated.
 
 - Default Standard provider: Hunyuan3D 2.0.
 - Optional High Quality provider: Hunyuan3D 2.1.
+- Optional experimental multi-view provider: Hunyuan3D-2GP (Hunyuan3D-2mv Shape + Delight/Paint Texture).
+
+Hunyuan3D-2GP uses a locally verified `transformers==4.49.0` compatibility lane, `mmgp`, and rebuilt `mesh_processor`/`custom_rasterizer_kernel` extensions. Its Paint/UV stage may execute in an app-owned local Python child process to keep the PySide6 process responsive; this remains a local desktop application process boundary, not a server.
 
 Optional ONNX Runtime may be used for lightweight auxiliary models only when CUDA/runtime compatibility is explicitly tested.
 

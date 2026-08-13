@@ -51,6 +51,8 @@ Use SQLite for metadata and ordinary filesystem directories for large assets.
 
 Kinds may include selected frame, mask, normalized input, raw mesh, textured mesh, final GLB, validation report, and log excerpt.
 
+For multi-view attempts, retain each selected view, isolated RGBA image, alpha mask, chronological label, source-frame index, and timestamp as attempt provenance. Retain a temporary Shape GLB separately from the final textured GLB when texture generation is requested.
+
 ### ValidationReport
 
 - attempt_id

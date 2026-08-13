@@ -47,6 +47,8 @@ The validation report must include:
 
 The user can still inspect warning-level models.
 
+For high-density generated meshes, diagnostics must remain bounded in memory. A connected-component calculation that would materialize excessive mesh copies may be skipped with `PASS_WITH_WARNINGS`; it must not turn a successfully generated GLB into a false reconstruction failure. Likewise, a viewer-conversion `MemoryError` is a warning-level diagnostic when core GLB parsing and geometry checks have passed.
+
 ## Rigging boundary
 
 This specification validates the static 3D asset layer. Skeleton, skinning and animation structure are validated separately by `SPECS/20-rigged-model-validation.md`.

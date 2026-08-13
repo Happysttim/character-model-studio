@@ -42,8 +42,10 @@ Keep:
 - region selector;
 - recording state/elapsed time;
 - local capture review;
+- import of an existing local video into the same capture/reconstruction flow;
 - frame extraction and quality selection;
 - AI reconstruction;
+- explicit experimental multi-view Shape + Texture reconstruction when its provider is ready;
 - GLB output;
 - technical validation;
 - 3D orbit/pan/zoom viewer;

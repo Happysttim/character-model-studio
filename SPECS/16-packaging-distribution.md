@@ -29,6 +29,8 @@ High Quality Hunyuan3D 2.1 remains optional and must not break installation/star
 
 Rigging weights are also optional at install time, but the app must clearly expose whether the configured rigging provider is installed and usable.
 
+Experimental providers such as Hunyuan3D-2GP are optional at install time. Packaging must discover their external source/native extensions and local Shape/Delight/Paint cache without embedding user-specific paths. If configured, the package must also support the app-owned local Python child-process Texture stage.
+
 The package must still open fixture static/rigged GLBs and use the pose/animation editor without downloading AI weights.
 
 ## First-run model setup
@@ -38,6 +40,8 @@ Preferred:
 - app package installs without heavyweight model weights;
 - diagnostics/settings can download/configure selected providers;
 - Standard provider is presented as the default reconstruction setup;
+- `isnet-anime` segmentation setup is required before the capture-to-reconstruction action is enabled;
+- experimental SF3D and Hunyuan3D-2GP Shape/Texture setup is explicitly user-selected;
 - High Quality setup is optional;
 - rigging provider setup is optional until the user needs auto-rigging;
 - download progress and required disk/VRAM/runtime compatibility are clear;

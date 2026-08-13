@@ -3,6 +3,7 @@
 - `.gitignore`
 - `AGENTS.md`
 - `DEPENDENCIES.md`
+- `download-model-to-project-cache.ps1`
 - `HARNESS.md`
 - `PHASES/00-environment-validation.md`
 - `PHASES/01-repository-scaffold.md`
@@ -43,3 +44,4 @@
 - `SPECS/19-skeleton-animation.md`
 - `SPECS/20-rigged-model-validation.md`
 - `SPECS/README.md`
+- `edu/README.md`

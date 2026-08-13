@@ -15,6 +15,7 @@ Provider facts in this document were verified against upstream documentation on 
 | AI runtime | PyTorch CUDA | Local GPU inference |
 | Standard reconstruction | Hunyuan3D 2.0 adapter | Default lower-VRAM image-to-3D provider |
 | High-quality reconstruction | Hunyuan3D 2.1 adapter | Optional higher-VRAM/PBR quality mode |
+| Experimental multi-view reconstruction | Hunyuan3D-2GP adapter | Explicit multi-view Shape + Texture lane; never replaces Standard |
 | Auto rigging | SkinTokens / TokenRig adapter | Default maximum-scope skeleton + skinning provider |
 | Alternate auto rigging | UniRig adapter | Optional provider; enable only after local compatibility/VRAM proof |
 | 3D model processing | trimesh | GLB parsing, geometry inspection, normalization/export |
@@ -78,6 +79,12 @@ Its upstream README reports a tested environment of:
 Because the project baseline is Python 3.11, 2.1 must not be enabled merely because the GPU has enough VRAM. A real import/load/inference smoke test in the project runtime is also required.
 
 If the 2.1 adapter cannot coexist with the project runtime, report `PROVIDER_RUNTIME_INCOMPATIBLE`. Do not add a hidden HTTP service to work around it.
+
+### Hunyuan3D-2GP experimental multi-view lane
+
+This optional lane is separate from Standard Hunyuan3D 2.0 and High Quality Hunyuan3D 2.1. It requires local source code, local checkpoints, and a verified runtime combination including Hunyuan3D-2mv Shape, Hunyuan3D Delight/Paint Texture, `transformers==4.49.0`, `mmgp`, and rebuilt `mesh_processor`/`custom_rasterizer_kernel` extensions in the active application Python runtime.
+
+Shape and Texture must both pass CUDA-only smoke tests before this provider becomes `READY`. The validated experimental lane requires at least 12 GiB total VRAM; this does not lower or change the published Standard/Higher Quality capability tiers. Texture is run in an app-owned local Python child process because its upstream Paint/UV operations can otherwise make the GUI process unresponsive.
 
 ### SkinTokens / TokenRig
 
@@ -155,6 +162,8 @@ Current baseline provider:
 - model cache resolved through `U2NET_HOME`, derived from the configured application-data root;
 - `CUDAExecutionProvider` is mandatory for production isolation. Do not accept ONNX Runtime CPU fallback;
 - the model is downloaded only through the explicit local model-download command, never during reconstruction.
+
+`isnet-anime` is required for the capture-to-reconstruction MVP path. The desktop application may still launch for browsing/imported asset review when it is absent, but reconstruction controls must remain unavailable with an actionable readiness reason.
 
 Do not require WSL for the Windows desktop product.
 

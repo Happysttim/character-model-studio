@@ -16,6 +16,8 @@ Do not log raw image bytes or full video contents.
 
 Log paths and metadata only where required for diagnostics.
 
+Do not hardcode or persist a developer-machine path, user profile name, hardware identifier, or other personal information in source, shipped documentation, generated reports, or attempt metadata. Use project-relative paths and runtime configuration instead.
+
 ## Project deletion
 
 Deletion must distinguish:

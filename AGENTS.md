@@ -147,6 +147,8 @@ Use signals to report progress back to the UI.
 
 Heavy tasks remain part of the same application and use application-owned task lanes. Do not turn a worker into a server.
 
+When a provider's native Python work can make the GUI process unresponsive despite a Qt worker thread, an application-owned local Python child process is allowed. It must be launched by the desktop app, use project-local files and configured caches, communicate only through local process output/files and exit status, and must not expose HTTP, RPC, or a daemon boundary.
+
 By default, only one heavyweight CUDA provider may own the primary GPU at a time. Reconstruction, texture and rigging providers should be loaded/unloaded sequentially unless a tested configuration explicitly proves simultaneous residency is safe.
 
 ## 10. GPU policy
@@ -198,6 +200,7 @@ Default/optional provider policy:
 
 - Standard reconstruction: Hunyuan3D 2.0.
 - Experimental textured reconstruction: Stable Fast 3D, only as an explicit user selection after local CUDA/cache/native-extension readiness passes; it never replaces the Standard default.
+- Experimental multi-view textured reconstruction: Hunyuan3D-2GP. It uses Hunyuan3D-2mv Shape followed by Delight/Paint Texture, accepts three or four isolated chronological views, and never replaces the Standard default.
 - High-quality reconstruction: Hunyuan3D 2.1.
 - Default auto-rigging reference: SkinTokens / TokenRig.
 - Alternate rigging provider candidate: UniRig.
@@ -263,6 +266,7 @@ UI motion/transition animation is required and is separate from character skelet
 - Do not hide exceptions with `except Exception: pass`.
 - User-facing failures require actionable messages and structured logs.
 - Use deterministic IDs and project-relative paths where feasible.
+- Do not hardcode a development computer's hardware details, absolute paths, user profile names, drive letters, or other personal information in code, documentation, fixtures, generated reports, or default settings. Resolve environment-specific values at runtime through configuration and project-relative paths.
 
 ## 15. Documentation completion rule
 

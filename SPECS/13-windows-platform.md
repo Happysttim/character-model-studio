@@ -38,6 +38,8 @@ Use appropriate user-local locations for:
 
 Never require write access to `Program Files`.
 
+Resolve model and project paths from configured environment/settings values and project-relative defaults. Do not persist absolute developer-machine paths, user profile names, drive letters, hardware identifiers, or personal directories in source code, specifications, or generated project metadata.
+
 ## Power and sleep
 
 A running reconstruction should handle lock/sleep/resume gracefully. At minimum, detect failed GPU work and preserve attempt state rather than leaving `RECONSTRUCTING` forever.

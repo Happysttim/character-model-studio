@@ -76,3 +76,7 @@ After stopping:
 - show duration/resolution/FPS;
 - allow playback or scrub preview;
 - allow discard or proceed to reconstruction.
+
+## Existing video import
+
+The Capture workspace must also allow a user to select a local MP4, MOV, MKV, or AVI file. Import must copy the selected source into the managed project capture folder, generate a representative thumbnail, and continue through the same preview, segmentation, reconstruction, validation, and review flow as a recorded capture. File copying, decoding, and thumbnail generation run outside the UI thread.

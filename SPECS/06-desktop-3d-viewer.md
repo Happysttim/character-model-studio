@@ -41,6 +41,8 @@ The reconstruction review screen must combine:
 
 The 3D viewport should be visually dominant but not consume the entire screen at the expense of review controls.
 
+Large generated textured meshes may receive a technical `PASS_WITH_WARNINGS` when optional viewer conversion exceeds a bounded validation-memory budget. The review UI must show that diagnostic clearly and still permit the user to inspect the source GLB when the core asset checks passed.
+
 ## Review actions
 
 ### Accept

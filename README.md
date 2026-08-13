@@ -67,6 +67,8 @@ uv sync --group dev
 
 각 AI 제공자의 외부 소스·가중치·네이티브 확장은 해당 제공자 안내에 따라 별도로 준비해야 합니다. 모델 가중치는 Git에 포함하지 않습니다.
 
+프로젝트 루트의 `download-model-to-project-cache.ps1`은 필수 `isnet-anime` 세그멘테이션 모델을 기본으로 준비하며, Hunyuan3D 2.0 Shape, SF3D, Hunyuan3D-2GP Shape/Texture는 명시적으로 선택할 때만 프로젝트 로컬 캐시에 다운로드합니다.
+
 ## 실행과 사용
 
 PowerShell 실행 정책 때문에 스크립트가 차단되면 다음처럼 실행합니다.

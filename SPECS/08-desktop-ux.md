@@ -60,6 +60,8 @@ After capture:
 - High Quality availability/reason;
 - generate model action.
 
+The same section must offer `Import existing video`. Import is a peer of recording, not a separate workflow: its preview, provider selector, processing state, and review handoff are identical after the managed local copy is created.
+
 ## Reconstruction Quality control
 
 The UI must make the provider policy understandable without exposing research-model complexity unnecessarily.
@@ -88,6 +90,7 @@ Show actual stage progression:
 - Loading Standard/High Quality model
 - Generating geometry
 - Generating/processing texture when used
+- Running isolated local texture process when the provider requires process isolation
 - Normalizing GLB
 - Validating model
 - Loading rigging model when used
@@ -95,6 +98,8 @@ Show actual stage progression:
 - Validating rig
 
 Do not represent indeterminate AI work as a fake exact percentage.
+
+Processing logs must be readable on the warm surface and include a local date/time for each user-visible task event. Logs describe stages and actionable failures; raw stack traces remain in diagnostics rather than the primary view.
 
 ## Review screen
 

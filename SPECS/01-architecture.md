@@ -137,6 +137,8 @@ Use one application-owned task orchestration layer.
 
 Heavy CUDA providers should be loaded/unloaded sequentially so consumer GPUs do not need reconstruction, texture, and rigging models resident simultaneously.
 
+If an upstream Texture/UV implementation still harms GUI responsiveness inside a Qt worker thread, isolate that one stage in an application-owned local Python child process. The parent app owns launch, cancellation, logs, result validation, and lifecycle; this is not a backend service.
+
 ## Provider abstraction
 
 The UI depends on application-facing interfaces, not model libraries.
@@ -153,6 +155,7 @@ Default policy:
 
 - Standard reconstruction: Hunyuan3D 2.0.
 - High Quality reconstruction: Hunyuan3D 2.1.
+- Experimental multi-view textured reconstruction: Hunyuan3D-2GP.
 - Auto rigging reference: SkinTokens/TokenRig.
 
 ## Local persistence

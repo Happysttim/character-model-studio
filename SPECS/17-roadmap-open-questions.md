@@ -2,6 +2,8 @@
 
 ## Reconstruction MVP milestone
 
+The Reconstruction MVP has been manually exercised with local capture/import, CUDA segmentation, reconstruction, GLB validation, and review. Future changes must preserve this local-only flow while keeping optional provider readiness truthful.
+
 - Python Windows desktop shell;
 - warm glassmorphism design system;
 - local projects/captures;

@@ -103,6 +103,7 @@ Reference provider constraints:
 
 - Hunyuan3D 2.0: default Standard provider; official README reports Windows support, ~6 GB Shape, ~16 GB Shape + Texture total.
 - Hunyuan3D 2.1: optional High Quality provider; upstream tested with Python 3.10 + PyTorch 2.5.1+cu124 and reports ~10 GB Shape, ~21 GB Texture, ~29 GB combined Shape + Texture.
+- Hunyuan3D-2GP: optional experimental multi-view provider. It uses Hunyuan3D-2mv Shape and Delight/Paint Texture, requires a verified `transformers==4.49.0` lane, `mmgp`, rebuilt `mesh_processor`/`custom_rasterizer_kernel` extensions, local checkpoints, and at least 12 GiB total VRAM for the validated experimental path.
 - SkinTokens / TokenRig: default maximum-scope auto-rigging reference; upstream requires Python >= 3.11, CUDA Toolkit >= 12.1, and at least 14 GB NVIDIA GPU memory for inference.
 - UniRig: allowed alternate rigging provider; upstream documents Python 3.11 and PyTorch >= 2.3.1, but the product must not invent a VRAM threshold without evidence.
 
@@ -118,6 +119,8 @@ The agent must not silently:
 - change the default provider;
 - create a hidden backend/server;
 - claim provider compatibility without a real initialization test.
+
+Hunyuan3D-2GP is eligible only after separate real CUDA Shape and Texture smoke tests produce a non-empty textured GLB. Its 12 GiB evidence is provider-specific and must not lower Standard or High Quality VRAM policy.
 
 ---
 
@@ -712,6 +715,8 @@ At minimum:
 - worker exceptions propagate to controlled UI error states.
 
 A visually frozen window is a failure even if the underlying task eventually completes.
+
+If an upstream Texture or UV-bake operation causes the desktop process to become unresponsive even from a Qt worker thread, the harness requires an app-owned local Python child-process lane. The parent application must retain UI responsiveness, own cancellation/recovery, verify the child exit status and output GLB, and never replace this with a server or CPU fallback.
 
 ---
 

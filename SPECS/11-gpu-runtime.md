@@ -41,6 +41,7 @@ At minimum derive:
 - `STANDARD_SHAPE`
 - `STANDARD_TEXTURED_PIPELINE`
 - `EXPERIMENTAL_SF3D_TEXTURED_PIPELINE`
+- `EXPERIMENTAL_HUNYUAN2GP_TEXTURED_PIPELINE`
 - `HIGH_QUALITY_SHAPE`
 - `HIGH_QUALITY_TEXTURE`
 - `HIGH_QUALITY_COMBINED_PIPELINE`
@@ -77,6 +78,18 @@ Official upstream documentation reports approximately:
 - tested environment of Python 3.10 + PyTorch 2.5.1+cu124.
 
 Because the application baseline is Python 3.11, High Quality must also pass a runtime compatibility test before being enabled.
+
+### Experimental multi-view — Hunyuan3D-2GP
+
+This optional provider combines Hunyuan3D-2mv Shape with Hunyuan3D Delight/Paint Texture. It is independent from the published Standard and High Quality product tiers.
+
+- require CUDA and at least 12 GiB total VRAM for the validated experimental lane;
+- require local Shape, Delight, and Paint checkpoints; never download during inference;
+- require a compatible `transformers==4.49.0` runtime, `mmgp`, and imported native `mesh_processor`/`custom_rasterizer_kernel` extensions;
+- require a real CUDA Shape smoke and a real CUDA Texture smoke before `READY`;
+- run Texture in an app-owned local child Python process when the in-process upstream runtime could harm GUI responsiveness.
+
+The 12 GiB threshold is provider-specific evidence for this experimental lane. It must not be used to claim Standard 2.0 Shape+Texture or High Quality eligibility below their documented thresholds.
 
 ## Auto-rigging providers
 

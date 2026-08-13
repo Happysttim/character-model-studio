@@ -30,16 +30,16 @@ The UI must remain legible without the OS backdrop effect.
 The implementation may tune exact values after visual testing, but use this family as the baseline:
 
 ```text
-CanvasWarm      #201B19   deep espresso-charcoal
-CanvasWarmAlt   #2A211E   warm brown-black
-GlassBase       rgba(255, 244, 235, 0.08)
-GlassRaised     rgba(255, 248, 241, 0.12)
-GlassStrong     rgba(255, 248, 241, 0.17)
-BorderSoft      rgba(255, 232, 218, 0.16)
+CanvasWarm      #F5E6D7   light warm cream canvas
+CanvasWarmAlt   #E7C8AF   warm apricot navigation surface
+GlassBase       rgba(255, 250, 244, 0.62)
+GlassRaised     rgba(255, 252, 248, 0.70)
+GlassStrong     rgba(255, 248, 240, 0.80)
+BorderSoft      rgba(143, 79, 50, 0.22)
 BorderFocus     rgba(255, 181, 122, 0.65)
-TextPrimary     #FFF7F1
-TextSecondary   #D9C9BF
-TextMuted       #A99589
+TextPrimary     #3E241B
+TextSecondary   #633C2E
+TextMuted       #876657
 Amber           #F2A65A
 Apricot         #FFBE88
 Coral           #E97B67
@@ -52,6 +52,8 @@ Info            #A9BED1
 ```
 
 The palette is intentionally not monochrome. Status colors remain muted enough to coexist with warm accents.
+
+The desktop shell uses an app-owned frameless title bar with visible minimize, maximize/restore, and close controls. The main workspace surface has no corner radius; secondary and floating controls retain the smaller contextual radii defined below.
 
 ## Gradients
 
