@@ -103,13 +103,13 @@ Current upstream prerequisites include:
 
 The provider generates a complete skeleton hierarchy and skinning weights from a mesh.
 
-### Alternate — UniRig
+### Alternate — Instance-Rig
 
-UniRig may be added as a provider adapter.
+Instance-Rig may be added as an isolated provider adapter.
 
 Its upstream documentation targets Python 3.11 and PyTorch >= 2.3.1.
 
-Do not assign a product VRAM threshold to UniRig without a current authoritative requirement or a reproducible local smoke test recorded by the project.
+Do not assign a product VRAM threshold to Instance-Rig without a current authoritative requirement or a reproducible local smoke test recorded by the project. Its TensorFlow runtime must expose a CUDA device; CPU fallback is forbidden.
 
 ## Product VRAM tiers
 

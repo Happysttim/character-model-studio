@@ -15,7 +15,7 @@ def main() -> int:
         "hunyuan3d_2": "hy3dgen",
         "hunyuan3d_2_1": "hunyuan3d_2_1",
         "skintokens": "skintokens",
-        "unirig": "unirig",
+        "instance_rig": "instancerig",
     }
     report = {
         "status": "PASS",

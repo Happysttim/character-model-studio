@@ -91,7 +91,7 @@ src/character_model_studio/
     validation.py
     providers/
       skintokens.py
-      unirig.py
+      instance_rig.py
   animation/
     skeleton.py
     skinning.py

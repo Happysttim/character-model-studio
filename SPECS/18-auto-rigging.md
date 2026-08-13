@@ -44,7 +44,7 @@ Do not enable this provider below its upstream VRAM requirement.
 
 ## Alternate provider
 
-UniRig may be implemented behind the same interface.
+Instance-Rig may be implemented behind the same interface in an isolated TensorFlow runtime. It must expose CUDA; CPU auto-rigging is forbidden.
 
 Do not assign it a product VRAM threshold without authoritative upstream documentation or a recorded real-device smoke test.
 

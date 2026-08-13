@@ -6,7 +6,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from character_model_studio.app.bootstrap import ApplicationContext
-from character_model_studio.rigging.providers.unirig import UniRigProvider
+from character_model_studio.rigging.providers.instance_rig import InstanceRigProvider
 from character_model_studio.ui.views.workspace import WorkspaceDefinition
 from character_model_studio.ui.widgets.controls import SecondaryButton, StatusIndicator
 from character_model_studio.ui.widgets.glass import GlassPanel
@@ -60,8 +60,8 @@ class RigWorkspace(QWidget):
 
     def refresh(self) -> None:
         """Refresh the optional provider status and reopen the newest completed rig."""
-        readiness = UniRigProvider().probe()
-        self._provider_status.label.setText(f"UniRig — {readiness.status}")
+        readiness = InstanceRigProvider().probe()
+        self._provider_status.label.setText(f"Instance-Rig — {readiness.status}")
         self._provider_detail.setText(readiness.reason)
         repository = self._context.repository
         if repository is None:
