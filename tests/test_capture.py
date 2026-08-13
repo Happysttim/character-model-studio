@@ -144,7 +144,9 @@ def test_imported_video_creates_managed_copy_and_thumbnail(tmp_path) -> None:
     encoder.write(np.full((240, 320, 3), 128, dtype=np.uint8))
     encoder.close()
 
-    result = import_video(source, tmp_path / "managed" / "capture.mp4", tmp_path / "managed" / "thumbnail.jpg")
+    result = import_video(
+        source, tmp_path / "managed" / "capture.mp4", tmp_path / "managed" / "thumbnail.jpg"
+    )
 
     assert result.video_path.is_file()
     assert result.thumbnail_path.is_file()

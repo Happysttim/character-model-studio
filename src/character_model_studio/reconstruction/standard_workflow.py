@@ -102,13 +102,22 @@ class StandardShapeWorkflow:
                 # deliberately provenance-visible rather than pretending image direction is known.
                 provider_inputs = []
                 view_directory = repository.attempt_artifact_path(attempt_id, "inputs/views")
-                for label, position in zip(("front", "left", "back", "right"), (0, 3, 6, 9), strict=True):
+                for label, position in zip(
+                    ("front", "left", "back", "right"), (0, 3, 6, 9), strict=True
+                ):
                     chosen = min(position, len(candidates) - 1)
                     view_path = view_directory / f"{label}.png"
                     view_path.parent.mkdir(parents=True, exist_ok=True)
                     copy2(candidate_isolations[chosen], view_path)
                     provider_inputs.append(view_path)
-                    multiview_selection.append({"label": label, "source_frame_index": candidates[chosen].source_frame_index, "source_timestamp_ms": candidates[chosen].source_timestamp_ms, "output_path": repository.as_project_relative_path(view_path)})
+                    multiview_selection.append(
+                        {
+                            "label": label,
+                            "source_frame_index": candidates[chosen].source_frame_index,
+                            "source_timestamp_ms": candidates[chosen].source_timestamp_ms,
+                            "output_path": repository.as_project_relative_path(view_path),
+                        }
+                    )
 
             device = torch.device("cuda:0")
             torch.cuda.empty_cache()
@@ -221,7 +230,9 @@ def _is_cancelled(token: CancellationToken) -> bool:
     return token.is_cancelled
 
 
-def _provider_for_attempt(provider_name: str) -> Hunyuan3D20Provider | StableFast3DProvider | Hunyuan3D2GPProvider:
+def _provider_for_attempt(
+    provider_name: str,
+) -> Hunyuan3D20Provider | StableFast3DProvider | Hunyuan3D2GPProvider:
     if provider_name == StableFast3DProvider.name:
         return StableFast3DProvider()
     if provider_name == Hunyuan3D20Provider.name:
@@ -248,7 +259,9 @@ def _shape_progress(
             publish(ProgressUpdate(stage, f"{label} {completed}/{total}", percent, True))
             return
         if provider_name == Hunyuan3D2GPProvider.name:
-            label = "Hunyuan3D-2GP Shape" if stage == "hunyuan2gp_shape" else "Hunyuan3D-2GP Texture"
+            label = (
+                "Hunyuan3D-2GP Shape" if stage == "hunyuan2gp_shape" else "Hunyuan3D-2GP Texture"
+            )
             percent = 45 + round(40 * completed / max(total, 1))
             publish(ProgressUpdate(stage, f"{label} {completed}/{total}", percent, True))
             return

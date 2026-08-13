@@ -402,7 +402,9 @@ def _hunyuan2gp_provider_readiness(gpu: GpuSnapshot) -> ProviderReadiness:
     """
     name = "Hunyuan3D-2GP (Experimental Multi-view)"
     if not gpu.cuda_available:
-        return ProviderReadiness(name, ReadinessStatus.CUDA_UNAVAILABLE, "CUDA is unavailable", False, False)
+        return ProviderReadiness(
+            name, ReadinessStatus.CUDA_UNAVAILABLE, "CUDA is unavailable", False, False
+        )
     from character_model_studio.reconstruction.hunyuan2gp_paths import resolve_hunyuan2gp_paths
 
     paths = resolve_hunyuan2gp_paths()
@@ -414,13 +416,27 @@ def _hunyuan2gp_provider_readiness(gpu: GpuSnapshot) -> ProviderReadiness:
         paths.paint_directory / "model_index.json",
         paths.paint_directory / "unet" / "diffusion_pytorch_model.bin",
     )
-    missing = [str(path.relative_to(paths.model_cache)) if path.is_relative_to(paths.model_cache) else path.name for path in required if not path.is_file()]
+    missing = [
+        str(path.relative_to(paths.model_cache))
+        if path.is_relative_to(paths.model_cache)
+        else path.name
+        for path in required
+        if not path.is_file()
+    ]
     if missing:
-        return ProviderReadiness(name, ReadinessStatus.NOT_INSTALLED, "Missing local 2GP artifacts: " + ", ".join(missing), False, True)
+        return ProviderReadiness(
+            name,
+            ReadinessStatus.NOT_INSTALLED,
+            "Missing local 2GP artifacts: " + ", ".join(missing),
+            False,
+            True,
+        )
     try:
         transformers_version = importlib.metadata.version("transformers")
     except importlib.metadata.PackageNotFoundError:
-        return ProviderReadiness(name, ReadinessStatus.NOT_INSTALLED, "Transformers is not installed", False, True)
+        return ProviderReadiness(
+            name, ReadinessStatus.NOT_INSTALLED, "Transformers is not installed", False, True
+        )
     if transformers_version != "4.49.0":
         return ProviderReadiness(
             name,
@@ -429,7 +445,22 @@ def _hunyuan2gp_provider_readiness(gpu: GpuSnapshot) -> ProviderReadiness:
             True,
             True,
         )
-    extensions = all(importlib.util.find_spec(module) is not None for module in ("mesh_processor", "custom_rasterizer_kernel"))
+    extensions = all(
+        importlib.util.find_spec(module) is not None
+        for module in ("mesh_processor", "custom_rasterizer_kernel")
+    )
     if not extensions:
-        return ProviderReadiness(name, ReadinessStatus.NOT_INSTALLED, "Hunyuan3D-2GP native extensions are not installed in the active Python runtime", True, True)
-    return ProviderReadiness(name, ReadinessStatus.READY, "Local multi-view Shape, Delight, Paint and native extensions are ready", True, True)
+        return ProviderReadiness(
+            name,
+            ReadinessStatus.NOT_INSTALLED,
+            "Hunyuan3D-2GP native extensions are not installed in the active Python runtime",
+            True,
+            True,
+        )
+    return ProviderReadiness(
+        name,
+        ReadinessStatus.READY,
+        "Local multi-view Shape, Delight, Paint and native extensions are ready",
+        True,
+        True,
+    )

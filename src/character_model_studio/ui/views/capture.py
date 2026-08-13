@@ -176,6 +176,7 @@ class _ImportWorker(QObject):
         except (OSError, ValueError) as error:
             self.failed.emit(str(error))
 
+
 class CaptureWorkspace(QWidget):
     """Capture-ready surface that keeps selection/recording outside the main UI."""
 
@@ -208,7 +209,9 @@ class CaptureWorkspace(QWidget):
             self._sf3d.setEnabled(runtime.sf3d.status.value == "READY")
             self._sf3d.setToolTip(runtime.sf3d.reason)
         self._standard.toggled.connect(self._select_standard_provider)
-        self._hunyuan2gp.setEnabled(runtime is not None and runtime.hunyuan2gp.status.value == "READY")
+        self._hunyuan2gp.setEnabled(
+            runtime is not None and runtime.hunyuan2gp.status.value == "READY"
+        )
         if runtime is not None:
             self._hunyuan2gp.setToolTip(runtime.hunyuan2gp.reason)
         self._hunyuan2gp.toggled.connect(self._select_hunyuan2gp_provider)
@@ -427,7 +430,9 @@ class CaptureWorkspace(QWidget):
             return
         attempt = repository.create_attempt(
             self._capture_id,
-            "experimental_textured" if self._selected_provider in {"Stable Fast 3D", "Hunyuan3D-2GP"} else "standard",
+            "experimental_textured"
+            if self._selected_provider in {"Stable Fast 3D", "Hunyuan3D-2GP"}
+            else "standard",
             provider=self._selected_provider,
             provider_version=(
                 "upstream-local-experimental"
@@ -499,7 +504,13 @@ class CaptureWorkspace(QWidget):
         runtime = self._context.runtime
         if runtime is None:
             return "Runtime readiness is unavailable"
-        provider = runtime.sf3d if self._selected_provider == "Stable Fast 3D" else runtime.hunyuan2gp if self._selected_provider == "Hunyuan3D-2GP" else runtime.standard
+        provider = (
+            runtime.sf3d
+            if self._selected_provider == "Stable Fast 3D"
+            else runtime.hunyuan2gp
+            if self._selected_provider == "Hunyuan3D-2GP"
+            else runtime.standard
+        )
         if provider.status.value != "READY":
             return f"{provider.provider} is unavailable: {provider.reason}"
         return f"Background isolation is unavailable: {runtime.segmentation.reason}"

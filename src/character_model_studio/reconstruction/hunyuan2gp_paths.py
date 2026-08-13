@@ -39,6 +39,10 @@ def resolve_hunyuan2gp_paths() -> Hunyuan2GPPaths:
     if not (cache / "tencent" / "Hunyuan3D-2mv").exists() and project_cache.exists():
         cache = project_cache
     return Hunyuan2GPPaths(
-        Path(os.environ.get("CHARACTER_MODEL_STUDIO_HUNYUAN2GP_SOURCE_DIR", root / "external" / "Hunyuan3D-2GP")),
+        Path(
+            os.environ.get(
+                "CHARACTER_MODEL_STUDIO_HUNYUAN2GP_SOURCE_DIR", root / "external" / "Hunyuan3D-2GP"
+            )
+        ),
         Path(os.environ.get("CHARACTER_MODEL_STUDIO_HUNYUAN2GP_MODEL_CACHE", cache)),
     )

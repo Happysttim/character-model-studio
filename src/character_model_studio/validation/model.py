@@ -130,9 +130,13 @@ class ModelValidator:
             if components > 5:
                 warning = "Mesh is highly fragmented"
                 warnings.append(warning)
-                checks.append(CheckResult("components", ValidationStatus.PASS_WITH_WARNINGS, warning))
+                checks.append(
+                    CheckResult("components", ValidationStatus.PASS_WITH_WARNINGS, warning)
+                )
             else:
-                checks.append(CheckResult("components", ValidationStatus.PASS, "Fragmentation is acceptable"))
+                checks.append(
+                    CheckResult("components", ValidationStatus.PASS, "Fragmentation is acceptable")
+                )
         if mesh.vertex_normals is None or len(mesh.vertex_normals) != len(mesh.vertices):
             warning = "Vertex normals are unavailable"
             warnings.append(warning)
@@ -150,7 +154,9 @@ class ModelValidator:
                 CheckResult("viewer_load", ValidationStatus.PASS, "Viewer conversion succeeded")
             )
         except MemoryError:
-            warning = "Viewer conversion skipped because the high-density asset exceeds validation memory"
+            warning = (
+                "Viewer conversion skipped because the high-density asset exceeds validation memory"
+            )
             warnings.append(warning)
             checks.append(CheckResult("viewer_load", ValidationStatus.PASS_WITH_WARNINGS, warning))
         except (OSError, ValueError, IndexError, TypeError) as error:
