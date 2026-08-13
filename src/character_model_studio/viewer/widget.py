@@ -257,10 +257,12 @@ class ModelViewport(QWidget):
             self._turntable_timer.stop()
 
     def closeEvent(self, event: Any) -> None:  # noqa: N802
-        """Release the VTK widget before its Qt parent is destroyed."""
+        """Stop timers without forcing VTK cleanup after Qt starts destroying OpenGL."""
         self._turntable_timer.stop()
-        self._plotter.clear()
-        self._plotter.close()
+        # Qt owns the native QOpenGL context.  Calling VTK clear()/close() here
+        # can call wglMakeCurrent during QWidget teardown, after that context is
+        # invalid on Windows.  Let Qt dispose the child interactor in its normal
+        # destruction order instead of issuing a second explicit GL cleanup.
         self._model_actor = None
         self._bounds_actor = None
         self._grid_actor = None
