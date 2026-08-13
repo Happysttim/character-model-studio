@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-INITIAL_SCHEMA_VERSION = 5
+INITIAL_SCHEMA_VERSION = 6
 
 
 def initialize_database(database_path: Path) -> None:
@@ -64,7 +64,11 @@ def initialize_database(database_path: Path) -> None:
                 id TEXT PRIMARY KEY,
                 model_attempt_id TEXT NOT NULL REFERENCES model_attempts(id),
                 status TEXT NOT NULL,
-                rigged_relative_path TEXT
+                rigged_relative_path TEXT,
+                provider TEXT NOT NULL DEFAULT 'unknown',
+                provider_version TEXT,
+                source_relative_path TEXT NOT NULL DEFAULT '',
+                metrics_json TEXT
             );
             CREATE TABLE IF NOT EXISTS pose_documents (
                 id TEXT PRIMARY KEY,
@@ -91,6 +95,21 @@ def initialize_database(database_path: Path) -> None:
             connection.execute("ALTER TABLE model_attempts ADD COLUMN parameters_json TEXT")
         if "metrics_json" not in attempt_columns:
             connection.execute("ALTER TABLE model_attempts ADD COLUMN metrics_json TEXT")
+        rig_columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(rig_attempts)").fetchall()
+        }
+        if "provider" not in rig_columns:
+            connection.execute(
+                "ALTER TABLE rig_attempts ADD COLUMN provider TEXT NOT NULL DEFAULT 'unknown'"
+            )
+        if "provider_version" not in rig_columns:
+            connection.execute("ALTER TABLE rig_attempts ADD COLUMN provider_version TEXT")
+        if "source_relative_path" not in rig_columns:
+            connection.execute(
+                "ALTER TABLE rig_attempts ADD COLUMN source_relative_path TEXT NOT NULL DEFAULT ''"
+            )
+        if "metrics_json" not in rig_columns:
+            connection.execute("ALTER TABLE rig_attempts ADD COLUMN metrics_json TEXT")
         connection.execute(
             "INSERT OR IGNORE INTO schema_metadata (singleton, schema_version) VALUES (1, ?)",
             (INITIAL_SCHEMA_VERSION,),

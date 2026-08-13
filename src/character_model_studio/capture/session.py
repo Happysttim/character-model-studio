@@ -93,8 +93,6 @@ class CaptureSession(QObject):
                 self.completed.emit(payload)
             else:
                 self.failed.emit(str(payload))
-        if thread is not None:
-            thread.deleteLater()
         self.state_changed.emit("idle")
 
     def _record_outcome(self, outcome: str, payload: object) -> None:

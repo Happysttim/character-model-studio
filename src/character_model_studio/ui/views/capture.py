@@ -329,7 +329,6 @@ class CaptureWorkspace(QWidget):
         worker.completed.connect(thread.quit)
         worker.failed.connect(thread.quit)
         thread.finished.connect(worker.deleteLater)
-        thread.finished.connect(thread.deleteLater)
         thread.finished.connect(self._finish_import)
         self._import_thread = thread
         self._import_worker = worker

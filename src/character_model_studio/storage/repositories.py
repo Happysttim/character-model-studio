@@ -12,10 +12,10 @@ from pathlib import Path
 from shutil import copy2
 from typing import TYPE_CHECKING
 
-import trimesh
-
 from character_model_studio.domain.models import Capture, ModelAttempt, Project
 from character_model_studio.domain.states import AttemptStatus, can_transition
+from character_model_studio.rigging.fixture_glb import write_fixture_rigged_glb
+from character_model_studio.rigging.models import RigAttempt, RigStatus
 
 if TYPE_CHECKING:
     from character_model_studio.validation.model import ModelValidationReport
@@ -308,20 +308,130 @@ class LocalRepository:
         return None if row is None else str(row[0])
 
     def create_mock_rig(self, attempt_id: str) -> str:
+        """Create an explicitly marked fixture rig for non-provider UI and validation tests."""
         attempt = self.get_attempt(attempt_id)
         if attempt.status is not AttemptStatus.ACCEPTED:
             raise ValueError("Mock rigging requires an accepted model attempt")
         rig_id = uuid.uuid4().hex
         output = self.attempt_artifact_path(attempt_id, f"rigs/{rig_id}/rigged.glb")
         output.parent.mkdir(parents=True, exist_ok=True)
-        trimesh.creation.icosphere(subdivisions=1).export(output)
+        write_fixture_rigged_glb(output)
         rig_path = self.as_project_relative_path(output)
         with self._connect() as connection:
             connection.execute(
-                "INSERT INTO rig_attempts VALUES (?, ?, ?, ?)",
-                (rig_id, attempt_id, "READY_FOR_RIG_REVIEW", rig_path),
+                """
+                INSERT INTO rig_attempts
+                (id, model_attempt_id, status, rigged_relative_path, provider, provider_version,
+                 source_relative_path, metrics_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    rig_id,
+                    attempt_id,
+                    RigStatus.READY_FOR_RIG_REVIEW.value,
+                    rig_path,
+                    "fixture-rigging",
+                    "1",
+                    attempt.model_relative_path or "",
+                    json.dumps({"mock": True, "joint_count": 2, "skinned_vertex_count": 4}),
+                ),
             )
         return rig_id
+
+    def create_rig_attempt(
+        self, attempt_id: str, provider: str, provider_version: str | None
+    ) -> RigAttempt:
+        """Create a derivative rig attempt without modifying the accepted source asset."""
+        attempt = self.get_attempt(attempt_id)
+        if attempt.status is not AttemptStatus.ACCEPTED or attempt.model_relative_path is None:
+            raise ValueError("Rigging requires an accepted model artifact")
+        rig_id = uuid.uuid4().hex
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO rig_attempts
+                (id, model_attempt_id, status, rigged_relative_path, provider, provider_version,
+                 source_relative_path, metrics_json)
+                VALUES (?, ?, ?, NULL, ?, ?, ?, NULL)
+                """,
+                (
+                    rig_id,
+                    attempt_id,
+                    RigStatus.CREATED.value,
+                    provider,
+                    provider_version,
+                    attempt.model_relative_path,
+                ),
+            )
+        return self.get_rig_attempt(rig_id)
+
+    def get_rig_attempt(self, rig_id: str) -> RigAttempt:
+        """Return one persisted rig attempt."""
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT id, model_attempt_id, status, provider, provider_version,
+                       rigged_relative_path, source_relative_path, metrics_json
+                FROM rig_attempts WHERE id = ?
+                """,
+                (rig_id,),
+            ).fetchone()
+        if row is None:
+            raise KeyError(rig_id)
+        return RigAttempt(
+            row[0],
+            row[1],
+            RigStatus(row[2]),
+            row[3],
+            row[4],
+            row[5],
+            row[6],
+            None if row[7] is None else json.loads(row[7]),
+        )
+
+    def list_rig_attempts(self, model_attempt_id: str | None = None) -> list[RigAttempt]:
+        """List rig derivatives without exposing absolute file paths to application layers."""
+        query = """
+            SELECT id, model_attempt_id, status, provider, provider_version,
+                   rigged_relative_path, source_relative_path, metrics_json
+            FROM rig_attempts
+        """
+        parameters: tuple[str, ...] = ()
+        if model_attempt_id is not None:
+            query += " WHERE model_attempt_id = ?"
+            parameters = (model_attempt_id,)
+        query += " ORDER BY rowid DESC"
+        with self._connect() as connection:
+            rows = connection.execute(query, parameters).fetchall()
+        return [
+            RigAttempt(
+                row[0],
+                row[1],
+                RigStatus(row[2]),
+                row[3],
+                row[4],
+                row[5],
+                row[6],
+                None if row[7] is None else json.loads(row[7]),
+            )
+            for row in rows
+        ]
+
+    def complete_rig_attempt(
+        self, rig_id: str, rigged_path: Path, metrics: dict[str, object]
+    ) -> RigAttempt:
+        """Publish only a completed rig artifact and preserve the static source asset."""
+        relative_path = self.as_project_relative_path(rigged_path)
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE rig_attempts
+                SET status = ?, rigged_relative_path = ?, metrics_json = ?
+                WHERE id = ?
+                """,
+                (RigStatus.READY_FOR_RIG_REVIEW.value, relative_path, json.dumps(metrics), rig_id),
+            )
+        return self.get_rig_attempt(rig_id)
 
     def save_pose_and_animation(self, rig_id: str) -> tuple[str, str]:
         pose_id, clip_id = uuid.uuid4().hex, uuid.uuid4().hex

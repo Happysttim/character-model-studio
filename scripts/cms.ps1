@@ -60,6 +60,7 @@ try {
             Invoke-ProjectPython @('-m', 'character_model_studio.tools.real_workflow_smoke')
         }
         'test-model-validation' { Invoke-ProjectPython @('-m', 'pytest', 'tests/test_model_validation.py') }
+        'test-rigging' { Invoke-ProjectPython @('-m', 'pytest', 'tests/test_rigging.py', 'tests/test_mock_workflow.py') }
         'test-integration' { Invoke-ProjectPython @('-m', 'pytest', 'tests/test_integration.py') }
         'verify' {
             Invoke-ProjectPython @('-m', 'ruff', 'format', '--check', 'src', 'tests')

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pyvista as pv
+from pygltflib import GLTF2
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 from pyvistaqt import QtInteractor
@@ -24,6 +25,8 @@ class ModelViewport(QWidget):
         self._model_actor: Any | None = None
         self._bounds_actor: Any | None = None
         self._grid_actor: Any | None = None
+        self._skeleton_actor: Any | None = None
+        self._joint_actor: Any | None = None
         self._loaded_model: LoadedModel | None = None
         self._turntable_timer = QTimer(self)
         self._turntable_timer.setInterval(33)
@@ -65,11 +68,45 @@ class ModelViewport(QWidget):
         self._loaded_model = loaded_model
         self._grid_actor = None
         self._bounds_actor = None
+        self._skeleton_actor = None
+        self._joint_actor = None
         self.set_axes_visible(True)
         self.set_grid_visible(False)
         self.set_bounds_visible(False)
         self.apply_camera(CameraPreset.THREE_QUARTER)
         return loaded_model
+
+    def set_skeleton_overlay(self, rigged_path: Path, visible: bool) -> bool:
+        """Render joint points and parent-child lines from a rigged GLB when present."""
+        if not visible:
+            for actor in (self._skeleton_actor, self._joint_actor):
+                if actor is not None:
+                    actor.SetVisibility(False)
+            self._plotter.render()
+            return self._skeleton_actor is not None
+        joints, edges = _load_skeleton_geometry(rigged_path)
+        if not joints:
+            return False
+        if self._skeleton_actor is None:
+            if edges:
+                lines = pv.PolyData(joints)
+                lines.lines = [value for start, end in edges for value in (2, start, end)]
+                self._skeleton_actor = self._plotter.add_mesh(
+                    lines, color="#E97B67", line_width=3, name="skeleton-overlay"
+                )
+            points = pv.PolyData(joints)
+            self._joint_actor = self._plotter.add_mesh(
+                points,
+                color="#FFD7A3",
+                point_size=12,
+                render_points_as_spheres=True,
+                name="skeleton-joints",
+            )
+        for actor in (self._skeleton_actor, self._joint_actor):
+            if actor is not None:
+                actor.SetVisibility(True)
+        self._plotter.render()
+        return True
 
     def apply_camera(self, preset: CameraPreset) -> None:
         """Apply a named review camera when a model has been loaded."""
@@ -151,6 +188,8 @@ class ModelViewport(QWidget):
         self._model_actor = None
         self._bounds_actor = None
         self._grid_actor = None
+        self._skeleton_actor = None
+        self._joint_actor = None
         self._loaded_model = None
         super().closeEvent(event)
 
@@ -158,3 +197,38 @@ class ModelViewport(QWidget):
         if self.has_model:
             self._plotter.camera.Azimuth(1.0)
             self._plotter.render()
+
+
+def _load_skeleton_geometry(path: Path) -> tuple[list[list[float]], list[tuple[int, int]]]:
+    """Extract world-space joint locations and hierarchy edges from a GLB skin."""
+    gltf = GLTF2().load_binary(str(path))
+    if not gltf.skins:
+        return [], []
+    skin = gltf.skins[0]
+    joint_nodes = list(skin.joints or [])
+    if not joint_nodes:
+        return [], []
+    parents: dict[int, int] = {}
+    for parent_index, node in enumerate(gltf.nodes):
+        for child_index in node.children or []:
+            parents[child_index] = parent_index
+    joint_set = set(joint_nodes)
+    positions = [_node_world_translation(gltf, node_index, parents) for node_index in joint_nodes]
+    by_node = {node_index: index for index, node_index in enumerate(joint_nodes)}
+    edges = [
+        (by_node[parent], by_node[node])
+        for node, parent in parents.items()
+        if node in joint_set and parent in joint_set
+    ]
+    return positions, edges
+
+
+def _node_world_translation(gltf: GLTF2, node_index: int, parents: dict[int, int]) -> list[float]:
+    """Accumulate translation-only joint positions for the visual review overlay."""
+    position = [0.0, 0.0, 0.0]
+    current: int | None = node_index
+    while current is not None:
+        translation = gltf.nodes[current].translation or [0.0, 0.0, 0.0]
+        position = [position[index] + float(translation[index]) for index in range(3)]
+        current = parents.get(current)
+    return position

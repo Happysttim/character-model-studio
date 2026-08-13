@@ -24,6 +24,7 @@ from character_model_studio.ui.views.capture import CaptureWorkspace
 from character_model_studio.ui.views.diagnostics import DiagnosticsWorkspace
 from character_model_studio.ui.views.processing import ProcessingWorkspace
 from character_model_studio.ui.views.review import ReviewWorkspace
+from character_model_studio.ui.views.rig import RigWorkspace
 from character_model_studio.ui.views.workspace import WORKSPACES, WorkspaceView
 from character_model_studio.ui.widgets.controls import StatusIndicator, Toast
 
@@ -209,6 +210,8 @@ class MainWindow(QMainWindow):
             elif definition.key == "diagnostics":
                 view = DiagnosticsWorkspace(self._context, self._workspace_stack)
                 view.reduce_motion.toggled.connect(self._set_reduce_motion)
+            elif definition.key == "rig":
+                view = RigWorkspace(self._context, definition, self._workspace_stack)
             else:
                 view = WorkspaceView(definition, self._workspace_stack)
             index = self._workspace_stack.addWidget(view)

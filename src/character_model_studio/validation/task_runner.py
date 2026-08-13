@@ -99,5 +99,3 @@ class ModelValidationTaskRunner(QObject):
                 self.completed.emit(payload)
             else:
                 self.failed.emit(str(payload))
-        if thread is not None:
-            thread.deleteLater()

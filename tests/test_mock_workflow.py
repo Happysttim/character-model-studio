@@ -35,6 +35,11 @@ def test_mock_workflow_persists_review_rig_and_animation(tmp_path) -> None:
     assert ready.texture_relative_path is not None
     assert (tmp_path / "Projects" / ready.texture_relative_path).is_file()
     assert any((tmp_path / "Projects").rglob("rigged.glb"))
+    rig = restarted.get_rig_attempt(rig_id)
+    assert rig.provider == "fixture-rigging"
+    assert rig.rigged_relative_path is not None
+    rigged_path = tmp_path / "Projects" / rig.rigged_relative_path
+    assert rigged_path.is_file()
     assert updates[-1].percent == 100
     assert pose_id and clip_id
 

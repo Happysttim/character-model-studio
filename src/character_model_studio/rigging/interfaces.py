@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 
 from character_model_studio.app.capabilities import ProviderReadiness
 from character_model_studio.common.cancellation import CancellationToken
+from character_model_studio.rigging.models import RiggingProgress
 
 
 class RiggingProvider(ABC):
@@ -29,5 +31,10 @@ class RiggingProvider(ABC):
         """Release provider resources before another heavyweight operation begins."""
 
     @abstractmethod
-    def rig(self, model_relative_path: str, cancellation: CancellationToken) -> str:
+    def rig(
+        self,
+        model_relative_path: str,
+        cancellation: CancellationToken,
+        progress: Callable[[RiggingProgress], None] | None = None,
+    ) -> str:
         """Create and return a project-relative rigged artifact path."""
