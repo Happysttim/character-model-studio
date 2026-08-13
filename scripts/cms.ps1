@@ -62,6 +62,8 @@ try {
         'test-model-validation' { Invoke-ProjectPython @('-m', 'pytest', 'tests/test_model_validation.py') }
         'test-rigging' { Invoke-ProjectPython @('-m', 'pytest', 'tests/test_rigging.py', 'tests/test_mock_workflow.py') }
         'test-integration' { Invoke-ProjectPython @('-m', 'pytest', 'tests/test_integration.py') }
+        'build' { Invoke-ProjectPython @('packaging/build.py') }
+        'package' { Invoke-ProjectPython @('packaging/build.py') }
         'verify' {
             Invoke-ProjectPython @('-m', 'ruff', 'format', '--check', 'src', 'tests')
             Invoke-ProjectPython @('-m', 'ruff', 'check', 'src', 'tests')

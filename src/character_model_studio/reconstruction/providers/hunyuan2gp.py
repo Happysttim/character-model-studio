@@ -142,9 +142,10 @@ def _texture_local_mesh(
     )
     if progress:
         progress("hunyuan2gp_texture", 1, 4)
+    provider_python = _resolve_texture_python()
     completed = subprocess.run(
         [
-            sys.executable,
+            str(provider_python),
             str(root / "scripts" / "hunyuan_2gp_texture_smoke.py"),
             str(shape_path),
             str(reference),
@@ -165,6 +166,22 @@ def _texture_local_mesh(
         raise RuntimeError("Hunyuan3D-2GP Texture child process produced no GLB")
     if progress:
         progress("hunyuan2gp_texture", 4, 4)
+
+
+def _resolve_texture_python() -> Path:
+    """Resolve a configured child runtime without attempting to execute a frozen EXE."""
+    configured = os.environ.get("CHARACTER_MODEL_STUDIO_HUNYUAN2GP_PYTHON")
+    if configured:
+        runtime = Path(configured)
+        if runtime.is_file():
+            return runtime
+        raise RuntimeError("Configured Hunyuan3D-2GP Python runtime does not exist")
+    if getattr(sys, "frozen", False):
+        raise RuntimeError(
+            "Hunyuan3D-2GP Texture needs CHARACTER_MODEL_STUDIO_HUNYUAN2GP_PYTHON "
+            "when running from the packaged app."
+        )
+    return Path(sys.executable)
 
 
 def _require_cuda_parameters(name: str, pipeline: Any) -> None:
