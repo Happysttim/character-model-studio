@@ -18,7 +18,8 @@ def resolve_real_rigged_asset() -> Path:
     configured = os.environ.get("CHARACTER_MODEL_STUDIO_REAL_RIGGED_GLB")
     if configured:
         return Path(configured)
-    return resolve_application_paths().root_directory / "exports" / "unirig-textured-rigged-smoke.glb"
+    exports = resolve_application_paths().root_directory / "exports"
+    return exports / "unirig-textured-rigged-smoke.glb"
 
 
 def main() -> int:

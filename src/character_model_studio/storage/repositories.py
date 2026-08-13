@@ -19,6 +19,7 @@ from character_model_studio.rigging.models import RigAttempt, RigStatus
 
 if TYPE_CHECKING:
     from character_model_studio.validation.model import ModelValidationReport
+    from character_model_studio.validation.rigged_model import RiggedModelValidationReport
 
 
 def _now() -> str:
@@ -465,7 +466,7 @@ class LocalRepository:
             )
         return self.get_rig_attempt(rig_id)
 
-    def persist_rig_validation_report(self, rig_id: str, report: object) -> None:
+    def persist_rig_validation_report(self, rig_id: str, report: RiggedModelValidationReport) -> None:
         """Persist the independent rig report for review and animation gating."""
         report_dict = report.as_dict()
         with self._connect() as connection:

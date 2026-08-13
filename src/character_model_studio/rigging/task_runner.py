@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QObject, QThread, Signal
 
 from character_model_studio.common.cancellation import CancellationToken
 from character_model_studio.rigging.models import RiggingProgress
@@ -22,7 +22,7 @@ class FixtureRiggingTaskRunner(QThread):
     completed = Signal(str)
     failed = Signal(str)
 
-    def __init__(self, parent: object | None = None) -> None:
+    def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._repository: LocalRepository | None = None
         self._attempt_id: str | None = None
