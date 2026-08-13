@@ -66,6 +66,8 @@ class AnimateWorkspace(QWidget):
         viewport = self._ensure_viewport()
         viewport.load_glb(path)
         viewport.set_skeleton_overlay(path, True)
+        viewport.enable_skeleton_picking()
+        viewport.skeleton_joint_picked.connect(self._pick_bone)
         bones = _bone_names(path)
         self._bone.clear()
         self._bone.addItems(bones)
@@ -206,6 +208,11 @@ class AnimateWorkspace(QWidget):
             self._viewport.select_skeleton_joint(
                 repository.projects_root / self._rig.rigged_relative_path, index
             )
+
+    def _pick_bone(self, index: int) -> None:
+        """Apply a direct preview click to the same bone editor used by keyboard controls."""
+        if 0 <= index < self._bone.count():
+            self._bone.setCurrentIndex(index)
 
     def save_from(self) -> None:
         self._from_pose = self._current_pose()

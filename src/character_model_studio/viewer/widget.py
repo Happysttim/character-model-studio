@@ -7,7 +7,7 @@ from typing import Any
 
 import pyvista as pv
 from pygltflib import GLTF2
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer, Signal
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 from pyvistaqt import QtInteractor
 
@@ -17,6 +17,8 @@ from character_model_studio.viewer.scene import LoadedModel, load_glb_model
 
 class ModelViewport(QWidget):
     """Interactive embedded viewport for static model inspection."""
+
+    skeleton_joint_picked = Signal(int)
 
     def __init__(self, parent: QWidget | None = None, *, off_screen: bool = False) -> None:
         super().__init__(parent)
@@ -28,6 +30,7 @@ class ModelViewport(QWidget):
         self._skeleton_actor: Any | None = None
         self._joint_actor: Any | None = None
         self._selected_joint_actor: Any | None = None
+        self._skeleton_points: list[list[float]] = []
         self._loaded_model: LoadedModel | None = None
         self._turntable_timer = QTimer(self)
         self._turntable_timer.setInterval(33)
@@ -87,6 +90,7 @@ class ModelViewport(QWidget):
             self._plotter.render()
             return self._skeleton_actor is not None
         joints, edges = _load_skeleton_geometry(rigged_path)
+        self._skeleton_points = joints
         if not joints:
             return False
         if self._skeleton_actor is None:
@@ -109,6 +113,22 @@ class ModelViewport(QWidget):
                 actor.SetVisibility(True)
         self._plotter.render()
         return True
+
+    def enable_skeleton_picking(self) -> None:
+        """Map a clicked/dragged overlay point to the nearest selectable joint."""
+
+        def picked(point: Any) -> None:
+            if not self._skeleton_points or point is None:
+                return
+            nearest = min(
+                range(len(self._skeleton_points)),
+                key=lambda index: sum(
+                    (float(point[i]) - self._skeleton_points[index][i]) ** 2 for i in range(3)
+                ),
+            )
+            self.skeleton_joint_picked.emit(nearest)
+
+        self._plotter.enable_point_picking(callback=picked, show_message=False, left_clicking=True)
 
     def select_skeleton_joint(self, rigged_path: Path, joint_index: int) -> bool:
         """Highlight a selected joint so bone editing has visible viewer feedback."""
