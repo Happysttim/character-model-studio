@@ -10,6 +10,12 @@ project_root = Path(SPECPATH).parent
 datas = []
 binaries = []
 hiddenimports = ["character_model_studio", "pyvistaqt"]
+# PyVista exposes a static-type plugin which conditionally imports mypy when it
+# happens to be installed in the build environment.  mypy's randomized mypyc
+# extension name is not a runtime application dependency and can be omitted by
+# PyInstaller, causing a windowed EXE to fail during import.  Keep every
+# development-only checker out of the frozen runtime so PyVista sees no mypy.
+excludes = ["mypy", "mypy_extensions", "pytest", "pytestqt", "coverage", "ruff"]
 
 for package in ("pyvista", "pyvistaqt", "vtkmodules"):
     datas += collect_data_files(package)
@@ -25,6 +31,7 @@ a = Analysis(
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
+    excludes=excludes,
     noarchive=False,
 )
 pyz = PYZ(a.pure)

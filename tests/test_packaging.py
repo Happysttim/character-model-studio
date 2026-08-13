@@ -26,6 +26,14 @@ def test_frozen_entry_uses_an_absolute_package_import() -> None:
     )
 
 
+def test_packaging_recipe_excludes_development_only_mypy_runtime() -> None:
+    """PyVista's optional mypy plugin must not pull mypyc into the GUI EXE."""
+    recipe = Path("packaging/character_model_studio.spec").read_text(encoding="utf-8")
+
+    assert '"mypy"' in recipe
+    assert "excludes=excludes" in recipe
+
+
 def test_frozen_texture_lane_requires_explicit_child_runtime(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
