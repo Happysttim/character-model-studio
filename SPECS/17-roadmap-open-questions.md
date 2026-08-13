@@ -19,7 +19,7 @@ The Reconstruction MVP has been manually exercised with local capture/import, CU
 
 After the reconstruction MVP:
 
-- automatic skeleton generation;
+- automatic skeleton generation through the configured UniRig isolated lane;
 - automatic skinning weights;
 - rigged GLB persistence;
 - rig validation;
@@ -54,13 +54,13 @@ Only add through explicit specification updates:
 
 ## Open questions to resolve during implementation
 
-1. Exact single-runtime Python/PyTorch/CUDA combination proven for Hunyuan3D 2.0 + the selected rigging provider.
+1. Whether a future SkinTokens/TokenRig implementation can coexist with the project runtime; UniRig deliberately uses an isolated local runtime instead of requiring one shared AI environment.
 2. Whether Hunyuan3D 2.1 can be supported reliably inside the same Python 3.11 application runtime; if not, High Quality remains unavailable until the user approves an architecture change.
 3. Exact provider commit/checkpoint proven on the target GPU fleet.
-4. Whether a lower-memory alternate rigging provider is reliable enough to become an official product tier.
+4. Whether UniRig's provider-specific 8 GiB smoke evidence remains reliable across supported GPU families and complex textured source assets.
 5. Final H.264 encoder path across NVIDIA/Intel/AMD capture machines.
 6. Whether Windows 10 remains a shipping target or best-effort fallback.
 7. Final installer/signing approach.
-8. Whether CPU LBS is sufficient for the expected model complexity or GPU skinning is required for animation preview.
+8. Whether CPU LBS remains responsive for the largest supported rigged assets or GPU skinning is required for animation preview.
 
 These questions must not be answered by reintroducing a server architecture without explicit user approval.

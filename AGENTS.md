@@ -77,8 +77,8 @@ Provider compatibility must be proven, not assumed:
 
 - Hunyuan3D 2.0 is the default reconstruction provider.
 - Hunyuan3D 2.1 is an optional high-quality provider. Its upstream tested lane is Python 3.10 + PyTorch 2.5.1+cu124, so compatibility with the project's Python 3.11 runtime must be smoke-tested before it is enabled.
-- SkinTokens / TokenRig is the default maximum-scope auto-rigging reference provider and currently requires Python 3.11+, CUDA Toolkit 12.1+, and an NVIDIA GPU with at least 14 GB VRAM for inference.
-- UniRig may be implemented as an alternate rigging provider, but no product VRAM threshold may be invented for it without a reproducible local smoke test or an authoritative upstream requirement.
+- SkinTokens / TokenRig remains the reference provider specification and currently requires Python 3.11+, CUDA Toolkit 12.1+, and an NVIDIA GPU with at least 14 GB VRAM for inference.
+- The implemented auto-rigging lane is **UniRig**, in an application-owned isolated Python 3.11 runtime. Its locally reproduced CUDA smoke establishes an 8 GiB minimum for this provider only; this must not change SkinTokens/TokenRig or reconstruction thresholds.
 
 The application remains one local Python desktop application. Do not silently introduce a hidden HTTP backend or service to solve dependency conflicts.
 
@@ -202,8 +202,8 @@ Default/optional provider policy:
 - Experimental textured reconstruction: Stable Fast 3D, only as an explicit user selection after local CUDA/cache/native-extension readiness passes; it never replaces the Standard default.
 - Experimental multi-view textured reconstruction: Hunyuan3D-2GP. It uses Hunyuan3D-2mv Shape followed by Delight/Paint Texture, accepts three or four isolated chronological views, and never replaces the Standard default.
 - High-quality reconstruction: Hunyuan3D 2.1.
-- Default auto-rigging reference: SkinTokens / TokenRig.
-- Alternate rigging provider candidate: UniRig.
+- Reference auto-rigging provider: SkinTokens / TokenRig.
+- Implemented auto-rigging provider: UniRig in an isolated local runtime, with source-texture transfer after its FBX skinning stage.
 
 The UI and project model must not need rewriting when a provider changes.
 
@@ -218,6 +218,8 @@ The UI and project model must not need rewriting when a provider changes.
 - Skeleton hierarchy and skinning weights must be validated before animation editing is enabled.
 - Bone rotations are stored as normalized local-space quaternions using `[x, y, z, w]` ordering.
 - Skeletal rotation interpolation uses quaternion SLERP or an equivalently correct shortest-path quaternion interpolation; plain Euler linear interpolation is forbidden.
+- Preview deformation must decode glTF `JOINTS_0`, `WEIGHTS_0`, and inverse-bind matrices, compose parent/child transforms, and apply correct CPU LBS (or an equivalently verified GPU path) before updating VTK mesh points.
+- On Windows, VTK cleanup must not call OpenGL cleanup after Qt has destroyed its native context; Qt owns the embedded interactor teardown order.
 
 ## 13. Product milestones and maximum scope
 

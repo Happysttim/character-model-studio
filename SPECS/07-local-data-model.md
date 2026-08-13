@@ -13,6 +13,7 @@ Use SQLite for metadata and ordinary filesystem directories for large assets.
 - created_at
 - updated_at
 - optional notes
+- ui_language (`en` or `ko`, stored in application settings rather than per-model metadata)
 
 ### Capture
 
@@ -90,6 +91,8 @@ For multi-view attempts, retain each selected view, isolated RGBA image, alpha m
 - joint_count
 - root_joint_name/id
 - created_at
+
+For a texture-preserving UniRig result, retain the original accepted source GLB, provider FBX/intermediate artifacts as local attempt evidence when needed, the merged rigged GLB, and merge-stage log separately. The original static asset is never overwritten.
 
 ### RigValidationReport
 

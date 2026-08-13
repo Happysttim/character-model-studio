@@ -9,4 +9,7 @@
 | 03 | [03-multiview-shape-texture.md](03-multiview-shape-texture.md) | 다중 시점 Shape·Texture 파이프라인 |
 | 04 | [04-texture-ui-responsiveness.md](04-texture-ui-responsiveness.md) | Texture 중 UI 응답성 및 자식 프로세스 격리 |
 | 05 | [05-large-glb-validation.md](05-large-glb-validation.md) | 대형 GLB 검증 메모리 문제 |
-
+| 06 | [06-unirig-isolated-rigging.md](06-unirig-isolated-rigging.md) | UniRig 격리 환경, CUDA 리깅, 텍스처 보존 |
+| 07 | [07-rigged-glb-validation-and-lbs.md](07-rigged-glb-validation-and-lbs.md) | Rigged GLB 검증과 CPU Linear Blend Skinning |
+| 08 | [08-provider-child-process-responsiveness.md](08-provider-child-process-responsiveness.md) | Texture/리깅 자식 프로세스와 응답성 보장 |
+| 09 | [09-vtk-windows-shutdown.md](09-vtk-windows-shutdown.md) | Windows Qt/VTK OpenGL 종료 순서 |

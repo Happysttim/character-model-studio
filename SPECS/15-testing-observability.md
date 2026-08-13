@@ -24,6 +24,7 @@ Provide a lightweight diagnostics screen showing:
 - Segmentation provider/model/readiness and CUDA execution-provider status;
 - High Quality provider/version/readiness;
 - rigging provider/version/readiness;
+- active UI language (without recording user-entered text);
 - storage paths;
 - log directory action.
 
@@ -47,6 +48,7 @@ For rigging attempts also record:
 - joint count;
 - provider runtime;
 - rig validation status.
+- isolated provider stage exit status, timeout/cancellation result, and texture-transfer outcome when UniRig is used.
 
 These are diagnostics, not decorative dashboard KPIs.
 
@@ -77,3 +79,4 @@ Saved poses/animations linked to an accepted rig must not be deleted because a l
 - GPU smoke: real Standard reconstruction, optional High Quality, rigging provider readiness;
 - experimental multi-view GPU smoke: CUDA Shape plus CUDA Texture with a textured GLB assertion before enabling Hunyuan3D-2GP;
 - packaging smoke: clean machine/account launch and fixture rig/animation editing.
+- Windows viewer shutdown smoke: launch/close without a VTK `wglMakeCurrent` teardown diagnostic.

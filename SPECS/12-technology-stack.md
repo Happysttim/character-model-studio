@@ -58,8 +58,8 @@ Optional ONNX Runtime may be used for lightweight auxiliary models only when CUD
 
 Provider-based Python adapters.
 
-- Default reference: SkinTokens / TokenRig.
-- Alternate candidate: UniRig.
+- Reference: SkinTokens / TokenRig.
+- Implemented lane: UniRig in its own project-owned CPython 3.11 environment, communicating by local process result/log/artifact only.
 
 Rigging provider output must include or be convertible into:
 
@@ -139,6 +139,8 @@ Use Python `ctypes`/`wintypes` for small stable Win32/DWM calls such as:
 - DPI/monitor helpers where Qt does not provide the required physical-coordinate behavior.
 
 Keep these calls isolated.
+
+For Windows VTK teardown, retain Qt ownership of the interactor/OpenGL context. Do not invoke duplicate VTK explicit cleanup from a late widget close event.
 
 ## Packaging
 

@@ -16,6 +16,8 @@ On startup the app must:
 
 Full AI model loading must not block first paint.
 
+At shutdown, stop timers and detach application references first. The embedded VTK interactor is owned by Qt: do not force a second VTK `clear()`/`close()` after Qt begins native OpenGL context destruction on Windows.
+
 ## Project flow
 
 A project contains captures, reconstruction attempts, optional rigs, and animation documents.
@@ -77,6 +79,8 @@ CANCELLED
 ```
 
 A rejected rig does not invalidate the underlying accepted static model.
+
+The implemented UniRig lane uses short-lived isolated child Python processes for input preparation, skeleton, skinning, and texture-preserving merge. Each stage is bounded, cancellable through process-tree termination, and publishes output only after independent rig validation.
 
 ## Animation document lifecycle
 

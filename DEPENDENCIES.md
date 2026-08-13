@@ -16,8 +16,8 @@ Provider facts in this document were verified against upstream documentation on 
 | Standard reconstruction | Hunyuan3D 2.0 adapter | Default lower-VRAM image-to-3D provider |
 | High-quality reconstruction | Hunyuan3D 2.1 adapter | Optional higher-VRAM/PBR quality mode |
 | Experimental multi-view reconstruction | Hunyuan3D-2GP adapter | Explicit multi-view Shape + Texture lane; never replaces Standard |
-| Auto rigging | SkinTokens / TokenRig adapter | Default maximum-scope skeleton + skinning provider |
-| Alternate auto rigging | UniRig adapter | Optional provider; enable only after local compatibility/VRAM proof |
+| Auto-rigging reference | SkinTokens / TokenRig adapter | Reference requirements for the maximum scope |
+| Implemented auto rigging | UniRig isolated-runtime adapter | CUDA skeleton + skinning provider; source texture transfer is a separate stage |
 | 3D model processing | trimesh | GLB parsing, geometry inspection, normalization/export |
 | glTF rig/animation data | pygltflib or equivalent pure-Python glTF layer | Skins, joints, animation channels and serialization |
 | Animation math | NumPy + SciPy rotation tools or equivalent tested quaternion utilities | Local transforms, SLERP, interpolation, LBS helpers |
@@ -103,9 +103,15 @@ Treat these as provider-specific requirements, not universal rigging requirement
 
 ### UniRig
 
-UniRig is an allowed alternate provider and documents Python 3.11 plus PyTorch >= 2.3.1.
+UniRig is the implemented rigging provider. It runs from an `external/UniRig` checkout in an application-owned, isolated CPython 3.11 environment because its native/ML dependencies cannot be safely co-pinned with the desktop reconstruction runtime.
 
-Do **not** hard-code a UniRig VRAM threshold unless a current authoritative upstream requirement exists or the project records a reproducible real-device smoke test. Provider capability can override the default SkinTokens lane only with evidence.
+- upstream runtime lane: Python 3.11 and PyTorch >= 2.3.1;
+- locally reproduced CUDA generation evidence establishes **8 GiB total VRAM minimum for UniRig only**;
+- skeleton and skinning execute as separate child-process stages; FlashAttention is deliberately absent for the Skeleton stage and installed from the local runtime-wheel cache only for Skinning;
+- source materials are retained by merging the generated skinning FBX back onto the original GLB in the isolated runtime;
+- checkpoints, external source, runtime wheel cache, and logs resolve from project configuration/local cache. Inference never downloads them.
+
+This provider-specific evidence does not alter the higher SkinTokens/TokenRig reference requirement or reconstruction tiers.
 
 ## PyTorch/CUDA version policy
 
@@ -200,3 +206,5 @@ Use the local Python stack for:
 `pygltflib` is an allowed baseline for glTF structural access. `NumPy` and tested quaternion utilities such as `scipy.spatial.transform` may be used for animation math.
 
 If profiling proves CPU skinning is inadequate, a GPU skinning implementation may be added inside the existing Python/VTK rendering architecture. Do not introduce a browser renderer solely for skeletal animation.
+
+The current preview implementation decodes glTF accessors for `POSITION`, `JOINTS_0`, `WEIGHTS_0`, and inverse-bind matrices with `pygltflib`, composes local-to-world transforms through the joint hierarchy, evaluates CPU linear blend skinning with NumPy, and updates the existing VTK mesh. This is a renderer feature, independent from the rig validator.

@@ -77,7 +77,11 @@ When a valid rig is present, the same embedded viewer architecture must support:
 - bind-pose reset;
 - skinned-mesh deformation preview.
 
+For the CPU preview path, the viewer decodes glTF `POSITION`, `JOINTS_0`, `WEIGHTS_0`, and inverse-bind matrices, evaluates parent/child joint matrices and linear blend skinning, then replaces the VTK mesh points. Merely moving the skeleton overlay is not sufficient.
+
 The viewer must not infer rig validity merely because the skeleton can be drawn.
+
+On Windows shutdown, Qt owns the `QtInteractor` lifecycle. Avoid explicit VTK GL cleanup after Qt has started destroying the widget/context, because it can produce `wglMakeCurrent` failures.
 
 ## Character animation scope
 

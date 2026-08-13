@@ -104,8 +104,8 @@ Reference provider constraints:
 - Hunyuan3D 2.0: default Standard provider; official README reports Windows support, ~6 GB Shape, ~16 GB Shape + Texture total.
 - Hunyuan3D 2.1: optional High Quality provider; upstream tested with Python 3.10 + PyTorch 2.5.1+cu124 and reports ~10 GB Shape, ~21 GB Texture, ~29 GB combined Shape + Texture.
 - Hunyuan3D-2GP: optional experimental multi-view provider. It uses Hunyuan3D-2mv Shape and Delight/Paint Texture, requires a verified `transformers==4.49.0` lane, `mmgp`, rebuilt `mesh_processor`/`custom_rasterizer_kernel` extensions, local checkpoints, and at least 12 GiB total VRAM for the validated experimental path.
-- SkinTokens / TokenRig: default maximum-scope auto-rigging reference; upstream requires Python >= 3.11, CUDA Toolkit >= 12.1, and at least 14 GB NVIDIA GPU memory for inference.
-- UniRig: allowed alternate rigging provider; upstream documents Python 3.11 and PyTorch >= 2.3.1, but the product must not invent a VRAM threshold without evidence.
+- SkinTokens / TokenRig: reference maximum-scope provider; upstream requires Python >= 3.11, CUDA Toolkit >= 12.1, and at least 14 GB NVIDIA GPU memory for inference.
+- UniRig: implemented isolated-runtime provider; upstream documents Python 3.11 and PyTorch >= 2.3.1. A reproducible local CUDA smoke establishes an 8 GiB total-VRAM minimum for UniRig only, including skeleton, skinning, rig validation, and textured-GLB transfer evidence.
 
 If a provider cannot initialize in the project runtime, report:
 
@@ -170,7 +170,7 @@ It must verify, within the actual project environment:
 - Hunyuan3D 2.0 provider initialization or the earliest safe smoke point;
 - optional Hunyuan3D 2.1 adapter import and initialization when installed;
 - SkinTokens/TokenRig adapter import and initialization when installed/eligible;
-- optional UniRig adapter import and initialization when installed;
+- UniRig adapter probe plus isolated-runtime/checkpoint/native-extension verification when configured;
 - custom native extensions required by an enabled provider;
 - PySide6 + VTK/PyVista still import successfully in the same environment;
 - the selected PyTorch/CUDA build is the one actually used by providers.
@@ -323,7 +323,7 @@ High Quality mode requires both:
 
 Enough VRAM alone does not make High Quality available.
 
-### Default auto-rigging
+### Auto-rigging reference and implemented lane
 
 Reference provider:
 
@@ -339,7 +339,7 @@ NVIDIA GPU VRAM >= 14 GB
 
 plus its documented software requirements.
 
-Alternate providers such as UniRig must advertise their own verified capabilities. Do not reuse the SkinTokens threshold for them automatically.
+The implemented UniRig lane advertises its independently verified 8 GiB threshold. Do not reuse the SkinTokens threshold for UniRig, or use the UniRig threshold for SkinTokens.
 
 ---
 
@@ -540,7 +540,7 @@ At minimum verify:
 
 A test that generates bone positions but no usable skinning weights does not count as full auto-rigging success.
 
-For the default SkinTokens lane, auto-rigging must remain disabled below its current upstream 14 GB inference requirement.
+For the SkinTokens reference lane, auto-rigging must remain disabled below its current upstream 14 GB inference requirement. For the implemented UniRig lane, require its independently verified 8 GiB threshold and isolated-runtime readiness.
 
 ---
 
@@ -569,6 +569,7 @@ Verify:
 - loop preview works;
 - playback does not freeze the Qt event loop;
 - skinned mesh deformation follows the skeleton;
+- the viewer decodes `JOINTS_0`, `WEIGHTS_0`, and inverse-bind matrices and applies LBS to updated VTK mesh points;
 - animation state can be saved and restored after restart.
 
 If a more general keyframe timeline is implemented, additionally verify ordered timestamps and deterministic interpolation between keyframes.
@@ -717,6 +718,12 @@ At minimum:
 A visually frozen window is a failure even if the underlying task eventually completes.
 
 If an upstream Texture or UV-bake operation causes the desktop process to become unresponsive even from a Qt worker thread, the harness requires an app-owned local Python child-process lane. The parent application must retain UI responsiveness, own cancellation/recovery, verify the child exit status and output GLB, and never replace this with a server or CPU fallback.
+
+The same isolated-child-process policy applies to a rigging provider with incompatible native dependencies. The child process must receive only configured local paths/environment, retain no daemon lifetime, and return through files, logs, and exit status.
+
+## Qt/VTK shutdown smoke
+
+When embedded VTK is enabled on Windows, launch and close the application at least once. The shutdown path must not emit `vtkWin32OpenGLRenderWindow` `wglMakeCurrent failed in Clean()` diagnostics. VTK cleanup must occur in Qt-owned widget destruction order, not after the native OpenGL context has been torn down.
 
 ---
 

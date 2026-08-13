@@ -103,13 +103,11 @@ Current upstream prerequisites include:
 
 The provider generates a complete skeleton hierarchy and skinning weights from a mesh.
 
-### Alternate — UniRig
+### Implemented isolated lane — UniRig
 
-UniRig may be added as a provider adapter.
+UniRig is the implemented provider adapter. Its upstream runtime targets Python 3.11 and PyTorch >= 2.3.1; the project has reproducible local CUDA smoke evidence for **8 GiB total VRAM** for this provider only.
 
-Its upstream documentation targets Python 3.11 and PyTorch >= 2.3.1.
-
-Do not assign a product VRAM threshold to UniRig without a current authoritative requirement or a reproducible local smoke test recorded by the project.
+It must additionally pass isolated-runtime, checkpoint, and native-extension readiness. The provider-specific threshold never changes the SkinTokens reference requirement or Standard/High Quality reconstruction tiers.
 
 ## Product VRAM tiers
 
@@ -142,6 +140,8 @@ start warning only.
 Frame preprocessing may overlap where it does not create harmful VRAM pressure.
 
 Do not run Hunyuan reconstruction/texture and auto-rigging models concurrently by default.
+
+UniRig's individual child stages are also sequential: preparation → skeleton → skinning → textured-source merge. FlashAttention and other native components are enabled only for the stage that requires them.
 
 ## Provider lifecycle
 
