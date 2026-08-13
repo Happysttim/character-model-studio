@@ -5,8 +5,8 @@ from __future__ import annotations
 from PySide6.QtCore import QObject, QThread, Signal, Slot
 
 from character_model_studio.common.cancellation import CancellationToken
-from character_model_studio.rigging.providers.unirig import UniRigProvider
 from character_model_studio.rigging.models import RigStatus
+from character_model_studio.rigging.providers.unirig import UniRigProvider
 from character_model_studio.storage.repositories import LocalRepository
 from character_model_studio.validation.rigged_model import RiggedModelValidator
 
