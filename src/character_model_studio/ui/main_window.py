@@ -201,6 +201,7 @@ class MainWindow(QMainWindow):
                 view = ReviewWorkspace(self._context, definition, self._workspace_stack)
                 self._review_workspace = view
                 view.regenerate_requested.connect(lambda: self.navigate("capture"))
+                view.accepted.connect(lambda _attempt_id: self.navigate("rig"))
             elif definition.key == "capture":
                 view = CaptureWorkspace(self._context, self._workspace_stack)
                 self._capture_workspace = view

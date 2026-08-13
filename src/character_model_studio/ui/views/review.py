@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
+    QFileDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -36,6 +38,7 @@ class ReviewWorkspace(QWidget):
     """Source comparison, viewer, validation placeholder, and review actions."""
 
     regenerate_requested = Signal()
+    accepted = Signal(str)
 
     def __init__(
         self,
@@ -115,6 +118,25 @@ class ReviewWorkspace(QWidget):
             self._source_preview.set_source_pixmap(QPixmap(str(source_path)))
         self._validation_runner.start_attempt(repository, attempt_id)
 
+    def import_glb(self) -> None:
+        """Copy a local GLB into project storage and validate it for review."""
+        source, _ = QFileDialog.getOpenFileName(
+            self, "Import GLB for review", "", "GLB files (*.glb)"
+        )
+        if not source:
+            return
+        repository = self._context.repository
+        if repository is None:
+            self._show_validation_failure("Local repository is unavailable")
+            return
+        try:
+            attempt = repository.import_glb_for_review(Path(source))
+            self.load_attempt(attempt.id)
+        except (OSError, RuntimeError, ValueError) as error:
+            self._show_validation_failure(
+                f"GLB import failed; the selected source was preserved: {error}"
+            )
+
     def _build_source_panel(self) -> QFrame:
         panel = GlassPanel("secondary", self)
         panel.setObjectName("sourceComparisonPanel")
@@ -127,12 +149,15 @@ class ReviewWorkspace(QWidget):
         self._source_preview.setObjectName("sourceFixturePreview")
         self._source_preview.set_source_pixmap(source_reference_pixmap())
         self._source_preview.setMinimumHeight(180)
+        import_button = SecondaryButton("Import existing GLB", panel)
+        import_button.clicked.connect(self.import_glb)
         caption = QLabel("Fixture reference only — no user capture loaded.", panel)
         caption.setWordWrap(True)
         caption.setObjectName("pageSubtitle")
         layout.addWidget(label)
         layout.addWidget(self._source_preview)
         layout.addWidget(caption)
+        layout.addWidget(import_button, alignment=Qt.AlignmentFlag.AlignLeft)
         layout.addStretch(1)
         return panel
 
@@ -261,6 +286,8 @@ class ReviewWorkspace(QWidget):
         self._validation_status.label.setText(f"Model {decision}; the project history was updated")
         self._accept.setEnabled(False)
         self._reject.setEnabled(False)
+        if accepted:
+            self.accepted.emit(self._review_attempt_id)
 
     def _viewport_apply_camera(self, preset: CameraPreset) -> None:
         self._with_viewport(lambda viewport: viewport.apply_camera(preset))

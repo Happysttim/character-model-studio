@@ -103,6 +103,38 @@ class LocalRepository:
             )
         return Capture(capture_id, project_id, relative_path)
 
+    def import_glb_for_review(self, source_path: Path) -> ModelAttempt:
+        """Copy a selected GLB into a new local project and make it reviewable."""
+        if source_path.suffix.lower() != ".glb":
+            raise ValueError("Only GLB assets can be imported into Review")
+        if not source_path.is_file():
+            raise FileNotFoundError(f"GLB asset does not exist: {source_path}")
+        project = self.create_project("Imported GLB")
+        capture_id = uuid.uuid4().hex
+        source_relative = f"{project.id}/imports/{capture_id}/source.glb"
+        destination = self._projects_root / source_relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        copy2(source_path, destination)
+        with self._connect() as connection:
+            connection.execute(
+                "INSERT INTO captures VALUES (?, ?, ?)", (capture_id, project.id, source_relative)
+            )
+        attempt = self.create_attempt(
+            capture_id,
+            "imported",
+            provider="local-glb-import",
+            parameters={"source": "user-selected-local-glb"},
+        )
+        self.transition_attempt(attempt.id, AttemptStatus.PREPROCESSING)
+        self.transition_attempt(attempt.id, AttemptStatus.RECONSTRUCTING)
+        self.transition_attempt(
+            attempt.id,
+            AttemptStatus.VALIDATING_MODEL,
+            model_path=source_relative,
+            texture_path=source_relative,
+        )
+        return self.transition_attempt(attempt.id, AttemptStatus.READY_FOR_REVIEW)
+
     def create_attempt(
         self,
         capture_id: str,
@@ -112,7 +144,7 @@ class LocalRepository:
         provider_version: str | None = None,
         parameters: dict[str, object] | None = None,
     ) -> ModelAttempt:
-        if quality_mode not in {"standard", "high_quality", "experimental_textured"}:
+        if quality_mode not in {"standard", "high_quality", "experimental_textured", "imported"}:
             raise ValueError(f"Unsupported mock quality mode: {quality_mode}")
         provider = provider or (
             "mock-hunyuan3d-2" if quality_mode == "standard" else "mock-hunyuan3d-2.1"
