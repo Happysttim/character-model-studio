@@ -305,7 +305,7 @@ class UniRigProvider(RiggingProvider):
             "Generating skeleton on CUDA",
             2,
             4,
-            skeleton_output / "source" / "skeleton.fbx",
+            intermediate / "source" / "predict_skeleton.npz",
         )
         self._set_flash_attention(paths, enabled=True)
         environment.pop("UNIRIG_PRESERVE_INTERMEDIATE", None)
